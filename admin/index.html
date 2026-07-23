@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOKISERVER - ADMIN PANEL</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --green: #00ff41;
+            --green-glow: rgba(0, 255, 65, 0.4);
+            --dark-bg: #050505;
+            --panel-bg: rgba(0, 15, 5, 0.75);
+            --red-alert: #ff3333;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'VT323', monospace;
+        }
+
+        body {
+            background-color: var(--dark-bg);
+            color: var(--green);
+            overflow-x: hidden;
+            overflow-y: auto;
+            min-height: 100vh;
+        }
+
+        /* Navbar CSS */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(5, 5, 5, 0.75);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 2px solid var(--green);
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            padding: 10px 0;
+            z-index: 1000;
+            box-shadow: 0 0 15px var(--green-glow);
+        }
+
+        .navbar a {
+            color: var(--green);
+            text-decoration: none;
+            margin: 5px 15px;
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            padding: 5px 10px;
+            border: 1px solid transparent;
+            transition: all 0.3s;
+            opacity: 0.8;
+        }
+
+        .navbar a:hover, .navbar a.active {
+            border: 1px solid var(--green);
+            background: rgba(0, 255, 65, 0.15);
+            box-shadow: 0 0 10px var(--green-glow);
+            opacity: 1;
+        }
+
+        .particles-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .particle {
+            position: absolute;
+            top: -20px;
+            color: var(--green);
+            font-size: 1.2rem;
+            opacity: 0.3;
+            animation: fall linear infinite;
+        }
+
+        @keyframes fall {
+            to { transform: translateY(110vh); }
+        }
+
+        .main-container {
+            position: relative;
+            z-index: 10;
+            min-height: 100vh;
+            width: 100%;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 100px 20px 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .header-panel {
+            border: 2px solid var(--green);
+            background: var(--panel-bg);
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.25);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .header-title {
+            font-size: clamp(2rem, 5vw, 3.5rem);
+            text-transform: uppercase;
+            text-shadow: 2px 2px 0px #000, 4px 4px 0px var(--green-glow);
+            letter-spacing: 2px;
+        }
+
+        .badge-status {
+            font-size: 1.3rem;
+            background: rgba(0, 255, 65, 0.15);
+            border: 1px solid var(--green);
+            padding: 5px 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            background-color: var(--green);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--green);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .card {
+            border: 1px solid var(--green);
+            background: var(--panel-bg);
+            padding: 20px;
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.15);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .card-header {
+            font-size: 1.8rem;
+            border-bottom: 1px dashed var(--green);
+            padding-bottom: 8px;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .btn-cmd {
+            background: rgba(0, 0, 0, 0.8);
+            color: var(--green);
+            border: 1px solid var(--green);
+            padding: 12px 18px;
+            font-size: 1.4rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            text-align: left;
+            transition: all 0.25s ease;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .btn-cmd:hover {
+            background: rgba(0, 255, 65, 0.2);
+            box-shadow: 0 0 15px var(--green-glow);
+            transform: translateY(-2px);
+        }
+
+        .btn-cmd:active {
+            transform: translateY(0);
+            background: rgba(0, 255, 65, 0.35);
+        }
+
+        .btn-cmd.danger {
+            color: var(--red-alert);
+            border-color: var(--red-alert);
+        }
+
+        .btn-cmd.danger:hover {
+            background: rgba(255, 51, 51, 0.2);
+            box-shadow: 0 0 15px rgba(255, 51, 51, 0.4);
+        }
+
+        .terminal-box {
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid var(--green);
+            padding: 15px;
+            font-size: 1.3rem;
+            line-height: 1.5;
+            min-height: 160px;
+            max-height: 250px;
+            overflow-y: auto;
+            border-left: 4px solid var(--green);
+            box-shadow: inset 0 0 10px rgba(0, 255, 65, 0.1);
+        }
+
+        .terminal-line {
+            margin-bottom: 4px;
+            word-break: break-all;
+        }
+
+        @media (max-width: 600px) {
+            .main-container { padding: 90px 12px 30px; }
+            .navbar a { font-size: 1.1rem; margin: 3px 6px; }
+            .header-title { font-size: 1.8rem; }
+            .btn-cmd { font-size: 1.2rem; padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar" id="dynamic-navbar">
+        <a href="/">HOME</a>
+    </nav>
+
+    <div class="particles-container" id="particles"></div>
+
+    <main class="main-container">
+        <!-- Header -->
+        <header class="header-panel">
+            <div>
+                <h1 class="header-title">ADMIN // CONTROL_PANEL</h1>
+                <p style="font-size: 1.2rem; opacity: 0.8;">TOKISERVER ROOT ACCESS PROTOCOL v1.0</p>
+            </div>
+            <div class="badge-status">
+                <span class="status-dot"></span>
+                <span>SYSTEM: ONLINE</span>
+            </div>
+        </header>
+
+        <!-- System Actions & Controls -->
+        <section class="card">
+            <h2 class="card-header">> QUICK_COMMANDS & ACTIONS</h2>
+            <div class="controls-grid">
+                <button class="btn-cmd" onclick="executeCommand('RESTART_SERVICES')">
+                    <span>> RESTART_SERVICES</span>
+                    <span>⚡</span>
+                </button>
+                <button class="btn-cmd" onclick="executeCommand('PURGE_CACHE')">
+                    <span>> PURGE_CACHE</span>
+                    <span>🧹</span>
+                </button>
+                <button class="btn-cmd" onclick="executeCommand('SYS_DIAGNOSTICS')">
+                    <span>> SYS_DIAGNOSTICS</span>
+                    <span>🔍</span>
+                </button>
+                <button class="btn-cmd" onclick="executeCommand('VIEW_LOGS')">
+                    <span>> VIEW_LOGS</span>
+                    <span>📜</span>
+                </button>
+                <button class="btn-cmd danger" onclick="executeCommand('LOCK_SESSION')">
+                    <span>> LOCK_SESSION</span>
+                    <span>🔒</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Live Output Terminal -->
+        <section class="card">
+            <h2 class="card-header">> CONSOLE_OUTPUT</h2>
+            <div class="terminal-box" id="console-output">
+                <div class="terminal-line">> INITIALIZING ADMIN CONSOLE... OK</div>
+                <div class="terminal-line">> WAITING FOR COMMAND INPUT...</div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Cargar los subdominios dinámicamente
+        async function loadNavbar() {
+            try {
+                const response = await fetch('/config.json');
+                const data = await response.json();
+                const navbar = document.getElementById('dynamic-navbar');
+                
+                data.subdomains.forEach(sub => {
+                    const link = document.createElement('a');
+                    if (sub.url === '/admin' || sub.url === '/admin/') {
+                        link.classList.add('active');
+                    }
+                    if (sub.url.startsWith(':')) {
+                        link.href = window.location.protocol + "//" + window.location.hostname + sub.url;
+                    } else {
+                        link.href = sub.url;
+                    }
+                    link.innerText = sub.name;
+                    navbar.appendChild(link);
+                });
+            } catch (error) {
+                console.error('Error al cargar la configuración:', error);
+            }
+        }
+        
+        loadNavbar();
+
+        // Partículas ASCII cayendo
+        const container = document.getElementById('particles');
+        const chars = ['0', '1', '{', '}', '>', '_', '$', 'X', '#', '!', '?'];
+        
+        function createParticle() {
+            const p = document.createElement('div');
+            p.classList.add('particle');
+            p.innerText = chars[Math.floor(Math.random() * chars.length)];
+            p.style.left = Math.random() * 100 + 'vw';
+            const duration = Math.random() * 5 + 3;
+            p.style.animationDuration = duration + 's';
+            p.style.opacity = Math.random() * 0.4 + 0.1;
+            
+            container.appendChild(p);
+
+            setTimeout(() => {
+                p.remove();
+            }, duration * 1000);
+        }
+
+        setInterval(createParticle, 150);
+
+        // Feedback interactivo en consola
+        function executeCommand(cmdName) {
+            const output = document.getElementById('console-output');
+            const timestamp = new Date().toLocaleTimeString();
+            
+            const line = document.createElement('div');
+            line.className = 'terminal-line';
+            line.innerHTML = `[${timestamp}] > EXEC: <span style="color: #ffffff;">${cmdName}</span> - STUB ACTION TRIGGERED`;
+            
+            output.appendChild(line);
+            output.scrollTop = output.scrollHeight;
+        }
+    </script>
+</body>
+</html>

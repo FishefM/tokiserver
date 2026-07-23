@@ -1,0 +1,28 @@
+{
+  "subdomains": [
+    {
+      "name": "Admin",
+      "url": "/admin"
+    },
+    {
+      "name": "Minecraft",
+      "url": "/minecraft"
+    },
+    {
+      "name": "Jellyfin",
+      "url": ":8096"
+    },
+    {
+      "name": "Kavita",
+      "url": ":5000"
+    },
+    {
+      "name": "GTA SA",
+      "url": "/gta-sa"
+    },
+    {
+      "name": "pvz Fusion",
+      "url": "/pvz"
+    }
+  ]
+}
