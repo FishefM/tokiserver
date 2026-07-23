@@ -12,6 +12,7 @@
             --dark-bg: #050505;
             --panel-bg: rgba(0, 15, 5, 0.75);
             --red-alert: #ff3333;
+            --yellow-warn: #ffcc00;
         }
 
         * {
@@ -129,6 +130,13 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .badge-status.offline {
+            border-color: var(--red-alert);
+            color: var(--red-alert);
+            background: rgba(255, 51, 51, 0.15);
         }
 
         .status-dot {
@@ -138,6 +146,11 @@
             border-radius: 50%;
             box-shadow: 0 0 8px var(--green);
             animation: pulse 1.5s infinite;
+        }
+
+        .badge-status.offline .status-dot {
+            background-color: var(--red-alert);
+            box-shadow: 0 0 8px var(--red-alert);
         }
 
         @keyframes pulse {
@@ -167,7 +180,7 @@
 
         .controls-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
             gap: 15px;
             margin-top: 10px;
         }
@@ -200,6 +213,12 @@
             background: rgba(0, 255, 65, 0.35);
         }
 
+        .btn-cmd:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .btn-cmd.danger {
             color: var(--red-alert);
             border-color: var(--red-alert);
@@ -216,8 +235,8 @@
             padding: 15px;
             font-size: 1.3rem;
             line-height: 1.5;
-            min-height: 160px;
-            max-height: 250px;
+            min-height: 200px;
+            max-height: 350px;
             overflow-y: auto;
             border-left: 4px solid var(--green);
             box-shadow: inset 0 0 10px rgba(0, 255, 65, 0.1);
@@ -226,6 +245,19 @@
         .terminal-line {
             margin-bottom: 4px;
             word-break: break-all;
+            white-space: pre-wrap;
+        }
+
+        .terminal-line.out {
+            color: #ffffff;
+        }
+
+        .terminal-line.err {
+            color: var(--red-alert);
+        }
+
+        .terminal-line.warn {
+            color: var(--yellow-warn);
         }
 
         @media (max-width: 600px) {
@@ -249,22 +281,24 @@
         <header class="header-panel">
             <div>
                 <h1 class="header-title">ADMIN // CONTROL_PANEL</h1>
-                <p style="font-size: 1.2rem; opacity: 0.8;">TOKISERVER ROOT ACCESS PROTOCOL v1.0</p>
+                <p style="font-size: 1.2rem; opacity: 0.8;">TOKISERVER ROOT ACCESS PROTOCOL v1.0 [LAN ENVIRONMENT]</p>
             </div>
-            <div class="badge-status">
+            <div class="badge-status" id="backend-status-badge">
                 <span class="status-dot"></span>
-                <span>SYSTEM: ONLINE</span>
+                <span id="backend-status-text">CONNECTING BACKEND...</span>
             </div>
         </header>
 
         <!-- System Actions & Controls -->
         <section class="card">
-            <h2 class="card-header">> QUICK_COMMANDS & ACTIONS</h2>
+            <h2 class="card-header">> SYSTEM_COMMANDS & DOCKER CONTROLS</h2>
             <div class="controls-grid">
-                <button class="btn-cmd" onclick="executeCommand('RESTART_SERVICES')">
-                    <span>> RESTART_SERVICES</span>
-                    <span>⚡</span>
+                <!-- Botón dinámico de Minecraft Server (mc_forge_server) -->
+                <button class="btn-cmd" id="btn-minecraft" onclick="executeCommand('MINECRAFT_TOGGLE')">
+                    <span id="mc-btn-label">> MINECRAFT SERVER</span>
+                    <span id="mc-btn-status" style="font-size: 1.1rem;">[CHECKING...]</span>
                 </button>
+
                 <button class="btn-cmd" onclick="executeCommand('PURGE_CACHE')">
                     <span>> PURGE_CACHE</span>
                     <span>🧹</span>
@@ -289,12 +323,22 @@
             <h2 class="card-header">> CONSOLE_OUTPUT</h2>
             <div class="terminal-box" id="console-output">
                 <div class="terminal-line">> INITIALIZING ADMIN CONSOLE... OK</div>
-                <div class="terminal-line">> WAITING FOR COMMAND INPUT...</div>
+                <div class="terminal-line">> DOCKER CONTAINER AUDIT: mc_forge_server READY.</div>
             </div>
         </section>
     </main>
 
     <script>
+        const getBackendUrl = () => {
+            // Si estamos en un puerto distinto al puerto HTTP/HTTPS por defecto (ej: Live Server en 5500 o 8080), conecta directo al 3000.
+            // Si accedemos a través de Nginx (puerto 80 o 443), usa proxy inverso relativo '/api'.
+            const port = window.location.port;
+            if (port && port !== '80' && port !== '443') {
+                return `http://${window.location.hostname}:3000`;
+            }
+            return '';
+        };
+
         // Cargar los subdominios dinámicamente
         async function loadNavbar() {
             try {
@@ -344,17 +388,101 @@
 
         setInterval(createParticle, 150);
 
-        // Feedback interactivo en consola
-        function executeCommand(cmdName) {
+        // Actualizar la interfaz de usuario para el estado de Minecraft
+        function updateMinecraftUI(mcInfo) {
+            const labelEl = document.getElementById('mc-btn-label');
+            const statusEl = document.getElementById('mc-btn-status');
+            if (!mcInfo) return;
+
+            if (!mcInfo.exists) {
+                labelEl.innerText = '> START MC (mc_forge_server)';
+                statusEl.innerText = '[NOT CREATED ⚠️]';
+                statusEl.style.color = 'var(--yellow-warn)';
+            } else if (mcInfo.running) {
+                labelEl.innerText = '> STOP MINECRAFT';
+                statusEl.innerText = '[ONLINE 🟢]';
+                statusEl.style.color = 'var(--green)';
+            } else {
+                labelEl.innerText = '> START MINECRAFT';
+                statusEl.innerText = '[OFFLINE 🔴]';
+                statusEl.style.color = 'var(--red-alert)';
+            }
+        }
+
+        // Verificación de estado del backend y Docker en tiempo real
+        async function checkBackendHealth() {
+            const badge = document.getElementById('backend-status-badge');
+            const statusText = document.getElementById('backend-status-text');
+
+            try {
+                const res = await fetch(`${getBackendUrl()}/api/status`);
+                if (res.ok) {
+                    const data = await res.json();
+                    badge.classList.remove('offline');
+                    statusText.innerText = `BACKEND: ONLINE | TU IP: ${data.clientIp}`;
+                    updateMinecraftUI(data.minecraft);
+                } else {
+                    throw new Error('HTTP Error');
+                }
+            } catch (err) {
+                badge.classList.add('offline');
+                statusText.innerText = `BACKEND: OFFLINE (${getBackendUrl() || '/api'})`;
+            }
+        }
+
+        checkBackendHealth();
+        setInterval(checkBackendHealth, 4000);
+
+        // Impresión en consola interactiva
+        function appendTerminalLine(text, type = 'sys') {
             const output = document.getElementById('console-output');
-            const timestamp = new Date().toLocaleTimeString();
-            
             const line = document.createElement('div');
-            line.className = 'terminal-line';
-            line.innerHTML = `[${timestamp}] > EXEC: <span style="color: #ffffff;">${cmdName}</span> - STUB ACTION TRIGGERED`;
-            
+            line.className = `terminal-line ${type}`;
+            line.textContent = text;
             output.appendChild(line);
             output.scrollTop = output.scrollHeight;
+        }
+
+        // Ejecutar comando vía Backend API
+        async function executeCommand(cmdName) {
+            const timestamp = new Date().toLocaleTimeString();
+            appendTerminalLine(`[${timestamp}] > DISPATCHING: ${cmdName}...`, 'sys');
+
+            const btnMc = document.getElementById('btn-minecraft');
+            if (cmdName === 'MINECRAFT_TOGGLE') {
+                btnMc.disabled = true;
+            }
+
+            try {
+                const res = await fetch(`${getBackendUrl()}/api/command`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command: cmdName })
+                });
+
+                const data = await res.json();
+
+                if (data.minecraft) {
+                    updateMinecraftUI(data.minecraft);
+                }
+
+                if (res.ok && data.success) {
+                    appendTerminalLine(`[${data.timestamp}] [IP: ${data.clientIp}] > [SUCCESS] ${data.label}`, 'sys');
+                    if (data.stdout) {
+                        data.stdout.split('\n').forEach(l => appendTerminalLine(l, 'out'));
+                    }
+                } else {
+                    appendTerminalLine(`[${timestamp}] [IP: ${data.clientIp || 'UNKNOWN'}] > [ERROR] ${data.error || 'Fallo en servidor'}`, 'err');
+                    if (data.stderr) {
+                        data.stderr.split('\n').forEach(l => appendTerminalLine(l, 'err'));
+                    }
+                }
+            } catch (err) {
+                appendTerminalLine(`[${timestamp}] > [CONNECTION_ERROR] No se pudo comunicar con el backend (${getBackendUrl() || '/api'})`, 'err');
+                appendTerminalLine(`> Asegúrate de haber iniciado el servidor backend con 'pnpm start' dentro de /server`, 'warn');
+            } finally {
+                btnMc.disabled = false;
+            }
         }
     </script>
 </body>
