@@ -83,7 +83,14 @@ function updateMinecraftUI(mcInfo) {
 function updateCorekeeperUI(ckInfo) {
     const labelEl = document.getElementById('ck-btn-label');
     const statusEl = document.getElementById('ck-btn-status');
-    if (!ckInfo || !labelEl || !statusEl) return;
+    if (!labelEl || !statusEl) return;
+
+    if (!ckInfo) {
+        labelEl.innerText = '> START CORE KEEPER';
+        statusEl.innerText = '[RESTART BACKEND ⚠️]';
+        statusEl.style.color = 'var(--yellow-warn)';
+        return;
+    }
 
     if (!ckInfo.exists) {
         labelEl.innerText = '> START CORE KEEPER';

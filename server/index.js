@@ -78,15 +78,23 @@ async function getMinecraftStatus() {
 async function getCorekeeperStatus() {
   const serviceName = 'corekeeper-server.service';
   try {
-    const { stdout } = await execPromise(`systemctl is-active ${serviceName}`);
-    const isRunning = stdout.trim() === 'active';
-    return { exists: true, running: isRunning, service: serviceName };
-  } catch (err) {
-    const stdout = err.stdout ? err.stdout.trim() : '';
-    if (stdout === 'inactive' || stdout === 'failed' || stdout === 'deactivating') {
-      return { exists: true, running: false, service: serviceName };
+    let statusText = '';
+    try {
+      const { stdout } = await execPromise(`systemctl is-active ${serviceName}`);
+      statusText = (stdout || '').trim();
+    } catch (err) {
+      statusText = (err.stdout || '').trim();
     }
-    return { exists: false, running: false, service: serviceName, error: 'Servicio no encontrado o inactivo' };
+
+    if (statusText === 'active') {
+      return { exists: true, running: true, service: serviceName };
+    } else if (['inactive', 'failed', 'deactivating', 'activating', 'reloading'].includes(statusText)) {
+      return { exists: true, running: false, service: serviceName };
+    } else {
+      return { exists: false, running: false, service: serviceName, error: statusText || 'Servicio no encontrado' };
+    }
+  } catch (err) {
+    return { exists: false, running: false, service: serviceName, error: err.message };
   }
 }
 
