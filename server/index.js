@@ -2,6 +2,39 @@ import express from 'express';
 import cors from 'cors';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const LOGS_DIR = path.join(__dirname, 'logs');
+
+// Crear el directorio dedicado /server/logs si no existe
+if (!fs.existsSync(LOGS_DIR)) {
+  fs.mkdirSync(LOGS_DIR, { recursive: true });
+}
+
+// Obtener la ruta del archivo de log del día actual (Formato: audit-YYYY-MM-DD.log)
+function getTodayLogPath() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return path.join(LOGS_DIR, `audit-${year}-${month}-${day}.log`);
+}
+
+// Función auxiliar para registrar acciones en el archivo del día (sin sobrescribir nada)
+function logAudit(ip, command, success, detail = '') {
+  const logFile = getTodayLogPath();
+  const timestamp = new Date().toLocaleString('es-MX', { timeZoneName: 'short' });
+  const statusStr = success ? 'EXITO' : 'FALLO';
+  const entry = `[${timestamp}] [IP: ${ip}] -> COMANDO: "${command}" | RESULTADO: ${statusStr} ${detail ? '| ' + detail : ''}\n`;
+
+  fs.appendFile(logFile, entry, (err) => {
+    if (err) console.error('[ERROR AUDITORIA] No se pudo escribir en el archivo de logs:', err);
+  });
+}
 
 const execPromise = promisify(exec);
 
@@ -41,7 +74,7 @@ async function getMinecraftStatus() {
   }
 }
 
-// Middleware de registro global de peticiones (Logging)
+// Middleware de registro global de peticiones (Logging en consola)
 app.use((req, res, next) => {
   const clientIp = getClientIp(req);
   const time = new Date().toLocaleTimeString();
@@ -72,8 +105,8 @@ const COMMAND_MAP = {
     cmd: 'echo "=== INFORMACION DEL SISTEMA ===" && uname -sr && uptime && echo "\n=== MEMORIA RAM ===" && free -h && echo "\n=== ALMACENAMIENTO DE DISCO ===" && df -h /'
   },
   VIEW_LOGS: {
-    label: 'VIEW_LOGS',
-    cmd: `echo "=== ULTIMOS REGISTROS DE DOCKER (${MC_CONTAINER}) ===" && docker logs --tail 20 ${MC_CONTAINER} 2>&1 || (echo "=== REGISTROS DE SERVIDOR ===" && date && ls -lh ..)`
+    label: 'HISTORIAL_DE_AUDITORIA_DIARIA',
+    cmd: `echo "=== HISTORIAL DE AUDITORIA DE COMANDOS EN SECCION /server/logs ===" && (tail -n 35 "${LOGS_DIR}"/audit-*.log 2>/dev/null || echo "[AUDIT LOG] No se han registrado comandos ejecutados el día de hoy.")`
   },
   LOCK_SESSION: {
     label: 'LOCK_SESSION',
@@ -94,6 +127,8 @@ app.post('/api/command', async (req, res) => {
   if (!command || !COMMAND_MAP[command]) {
     console.warn(`[AUDIT ALERTA] IP ${clientIp} intentó ejecutar comando no permitido: "${command}"`);
     console.log(`--------------------------------------------------\n`);
+    logAudit(clientIp, command || 'DESCONOCIDO', false, 'Comando no permitido');
+
     return res.status(400).json({
       success: false,
       clientIp,
@@ -115,6 +150,7 @@ app.post('/api/command', async (req, res) => {
 
       console.log(`[AUDIT DOCKER] ${actionLabel} completado por IP: ${clientIp}`);
       console.log(`--------------------------------------------------\n`);
+      logAudit(clientIp, command, true, actionLabel);
 
       return res.json({
         success: true,
@@ -130,6 +166,7 @@ app.post('/api/command', async (req, res) => {
       const newStatus = await getMinecraftStatus();
       console.error(`[AUDIT DOCKER ERROR] Fallo en ${dockerCmd} por IP: ${clientIp}`, err.message);
       console.log(`--------------------------------------------------\n`);
+      logAudit(clientIp, command, false, `Error: ${err.message}`);
 
       return res.status(500).json({
         success: false,
@@ -152,6 +189,7 @@ app.post('/api/command', async (req, res) => {
 
     console.log(`[AUDIT EXITOSO] Comando ${command} ejecutado correctamente para IP: ${clientIp}`);
     console.log(`--------------------------------------------------\n`);
+    logAudit(clientIp, command, true, target.label);
 
     res.json({
       success: true,
@@ -167,6 +205,7 @@ app.post('/api/command', async (req, res) => {
     const mcStatus = await getMinecraftStatus();
     console.error(`[AUDIT ERROR] Fallo al ejecutar ${command} desde IP: ${clientIp}`, err.message);
     console.log(`--------------------------------------------------\n`);
+    logAudit(clientIp, command, false, err.message);
 
     res.status(500).json({
       success: false,
@@ -200,6 +239,6 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n==================================================`);
   console.log(`[TOKISERVER BACKEND ONLINE] Escuchando en el puerto ${PORT}`);
   console.log(`Disponible en entorno LAN: http://0.0.0.0:${PORT}`);
-  console.log(`Controlador Docker activado para: ${MC_CONTAINER}`);
+  console.log(`Directorio de logs diarios activado en: ${LOGS_DIR}`);
   console.log(`==================================================\n`);
 });
