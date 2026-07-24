@@ -23,7 +23,7 @@
         <header class="header-panel">
             <div>
                 <h1 class="header-title">ADMIN // CONTROL_PANEL</h1>
-                <p style="font-size: 1.2rem; opacity: 0.8;">TOKISERVER ROOT ACCESS PROTOCOL v1.0 [LAN ENVIRONMENT]</p>
+                <p style="font-size: 1.2rem; opacity: 0.8;">TOKISERVER ROOT ACCESS PROTOCOL v1.0</p>
             </div>
             <div class="badge-status" id="backend-status-badge">
                 <span class="status-dot"></span>
@@ -39,6 +39,12 @@
                 <button class="btn-cmd" id="btn-minecraft" onclick="executeCommand('MINECRAFT_TOGGLE')">
                     <span id="mc-btn-label">> MINECRAFT SERVER</span>
                     <span id="mc-btn-status" style="font-size: 1.1rem;">[CHECKING...]</span>
+                </button>
+
+                <!-- Botón dinámico de Core Keeper Server (corekeeper-server.service) -->
+                <button class="btn-cmd" id="btn-corekeeper" onclick="executeCommand('COREKEEPER_TOGGLE')">
+                    <span id="ck-btn-label">> CORE KEEPER SERVER</span>
+                    <span id="ck-btn-status" style="font-size: 1.1rem;">[CHECKING...]</span>
                 </button>
 
                 <button class="btn-cmd" onclick="executeCommand('PURGE_CACHE')">
@@ -65,7 +71,6 @@
             <h2 class="card-header">> CONSOLE_OUTPUT</h2>
             <div class="terminal-box" id="console-output">
                 <div class="terminal-line">> INITIALIZING ADMIN CONSOLE... OK</div>
-                <div class="terminal-line">> DOCKER CONTAINER AUDIT: mc_forge_server READY.</div>
             </div>
         </section>
     </main>

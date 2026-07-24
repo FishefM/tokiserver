@@ -74,6 +74,22 @@ async function getMinecraftStatus() {
   }
 }
 
+// Función auxiliar para verificar el estado de systemctl para Core Keeper
+async function getCorekeeperStatus() {
+  const serviceName = 'corekeeper-server.service';
+  try {
+    const { stdout } = await execPromise(`systemctl is-active ${serviceName}`);
+    const isRunning = stdout.trim() === 'active';
+    return { exists: true, running: isRunning, service: serviceName };
+  } catch (err) {
+    const stdout = err.stdout ? err.stdout.trim() : '';
+    if (stdout === 'inactive' || stdout === 'failed' || stdout === 'deactivating') {
+      return { exists: true, running: false, service: serviceName };
+    }
+    return { exists: false, running: false, service: serviceName, error: 'Servicio no encontrado o inactivo' };
+  }
+}
+
 // Middleware de registro global de peticiones (Logging en consola)
 app.use((req, res, next) => {
   const clientIp = getClientIp(req);
@@ -95,6 +111,18 @@ const COMMAND_MAP = {
   MINECRAFT_STOP: {
     label: 'MINECRAFT_STOP',
     cmd: `docker stop ${MC_CONTAINER}`
+  },
+  COREKEEPER_TOGGLE: {
+    label: 'COREKEEPER_TOGGLE',
+    dynamic: true
+  },
+  COREKEEPER_START: {
+    label: 'COREKEEPER_START',
+    cmd: 'sudo systemctl start corekeeper-server.service'
+  },
+  COREKEEPER_STOP: {
+    label: 'COREKEEPER_STOP',
+    cmd: 'sudo systemctl stop corekeeper-server.service'
   },
   PURGE_CACHE: {
     label: 'PURGE_CACHE',
@@ -147,6 +175,7 @@ app.post('/api/command', async (req, res) => {
     try {
       const { stdout, stderr } = await execPromise(dockerCmd, { timeout: 30000 });
       const newStatus = await getMinecraftStatus();
+      const ckStatus = await getCorekeeperStatus();
 
       console.log(`[AUDIT DOCKER] ${actionLabel} completado por IP: ${clientIp}`);
       console.log(`--------------------------------------------------\n`);
@@ -158,12 +187,14 @@ app.post('/api/command', async (req, res) => {
         label: actionLabel,
         clientIp,
         minecraft: newStatus,
+        corekeeper: ckStatus,
         stdout: stdout.trim() || `Comando ejecutado: ${dockerCmd}`,
         stderr: stderr.trim(),
         timestamp
       });
     } catch (err) {
       const newStatus = await getMinecraftStatus();
+      const ckStatus = await getCorekeeperStatus();
       console.error(`[AUDIT DOCKER ERROR] Fallo en ${dockerCmd} por IP: ${clientIp}`, err.message);
       console.log(`--------------------------------------------------\n`);
       logAudit(clientIp, command, false, `Error: ${err.message}`);
@@ -173,7 +204,56 @@ app.post('/api/command', async (req, res) => {
         command,
         clientIp,
         minecraft: newStatus,
+        corekeeper: ckStatus,
         error: `Fallo al gestionar contenedor (${MC_CONTAINER}): ${err.message}`,
+        stdout: err.stdout ? err.stdout.trim() : '',
+        stderr: err.stderr ? err.stderr.trim() : '',
+        timestamp
+      });
+    }
+  }
+
+  // Manejo especial para conmutar (toggle) el servidor de Core Keeper
+  if (command === 'COREKEEPER_TOGGLE') {
+    const currentStatus = await getCorekeeperStatus();
+    const shouldStop = currentStatus.running;
+    const sysCmd = shouldStop ? 'sudo systemctl stop corekeeper-server.service' : 'sudo systemctl start corekeeper-server.service';
+    const actionLabel = shouldStop ? 'DETENER CORE KEEPER (corekeeper-server.service)' : 'INICIAR CORE KEEPER (corekeeper-server.service)';
+
+    try {
+      const { stdout, stderr } = await execPromise(sysCmd, { timeout: 30000 });
+      const newStatus = await getCorekeeperStatus();
+      const mcStatus = await getMinecraftStatus();
+
+      console.log(`[AUDIT SYSTEMCTL] ${actionLabel} completado por IP: ${clientIp}`);
+      console.log(`--------------------------------------------------\n`);
+      logAudit(clientIp, command, true, actionLabel);
+
+      return res.json({
+        success: true,
+        command,
+        label: actionLabel,
+        clientIp,
+        minecraft: mcStatus,
+        corekeeper: newStatus,
+        stdout: stdout.trim() || `Comando ejecutado: ${sysCmd}`,
+        stderr: stderr.trim(),
+        timestamp
+      });
+    } catch (err) {
+      const newStatus = await getCorekeeperStatus();
+      const mcStatus = await getMinecraftStatus();
+      console.error(`[AUDIT SYSTEMCTL ERROR] Fallo en ${sysCmd} por IP: ${clientIp}`, err.message);
+      console.log(`--------------------------------------------------\n`);
+      logAudit(clientIp, command, false, `Error: ${err.message}`);
+
+      return res.status(500).json({
+        success: false,
+        command,
+        clientIp,
+        minecraft: mcStatus,
+        corekeeper: newStatus,
+        error: `Fallo al gestionar servicio (corekeeper-server.service): ${err.message}`,
         stdout: err.stdout ? err.stdout.trim() : '',
         stderr: err.stderr ? err.stderr.trim() : '',
         timestamp
@@ -186,6 +266,7 @@ app.post('/api/command', async (req, res) => {
   try {
     const { stdout, stderr } = await execPromise(target.cmd, { timeout: 15000 });
     const mcStatus = await getMinecraftStatus();
+    const ckStatus = await getCorekeeperStatus();
 
     console.log(`[AUDIT EXITOSO] Comando ${command} ejecutado correctamente para IP: ${clientIp}`);
     console.log(`--------------------------------------------------\n`);
@@ -197,12 +278,14 @@ app.post('/api/command', async (req, res) => {
       label: target.label,
       clientIp,
       minecraft: mcStatus,
+      corekeeper: ckStatus,
       stdout: stdout.trim(),
       stderr: stderr.trim(),
       timestamp
     });
   } catch (err) {
     const mcStatus = await getMinecraftStatus();
+    const ckStatus = await getCorekeeperStatus();
     console.error(`[AUDIT ERROR] Fallo al ejecutar ${command} desde IP: ${clientIp}`, err.message);
     console.log(`--------------------------------------------------\n`);
     logAudit(clientIp, command, false, err.message);
@@ -212,6 +295,7 @@ app.post('/api/command', async (req, res) => {
       command,
       clientIp,
       minecraft: mcStatus,
+      corekeeper: ckStatus,
       error: err.message,
       stdout: err.stdout ? err.stdout.trim() : '',
       stderr: err.stderr ? err.stderr.trim() : '',
@@ -224,12 +308,14 @@ app.post('/api/command', async (req, res) => {
 app.get('/api/status', async (req, res) => {
   const clientIp = getClientIp(req);
   const mcStatus = await getMinecraftStatus();
+  const ckStatus = await getCorekeeperStatus();
 
   res.json({
     status: 'ONLINE',
     service: 'Tokiserver Admin Backend',
     clientIp,
     minecraft: mcStatus,
+    corekeeper: ckStatus,
     uptime: Math.floor(process.uptime()),
     timestamp: new Date().toISOString()
   });

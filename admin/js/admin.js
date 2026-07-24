@@ -79,7 +79,28 @@ function updateMinecraftUI(mcInfo) {
     }
 }
 
-// Verificación de estado del backend y Docker en tiempo real
+// Actualizar la interfaz de usuario para el estado de Core Keeper
+function updateCorekeeperUI(ckInfo) {
+    const labelEl = document.getElementById('ck-btn-label');
+    const statusEl = document.getElementById('ck-btn-status');
+    if (!ckInfo || !labelEl || !statusEl) return;
+
+    if (!ckInfo.exists) {
+        labelEl.innerText = '> START CORE KEEPER';
+        statusEl.innerText = '[NOT CREATED ⚠️]';
+        statusEl.style.color = 'var(--yellow-warn)';
+    } else if (ckInfo.running) {
+        labelEl.innerText = '> STOP CORE KEEPER';
+        statusEl.innerText = '[ONLINE 🟢]';
+        statusEl.style.color = 'var(--green)';
+    } else {
+        labelEl.innerText = '> START CORE KEEPER';
+        statusEl.innerText = '[OFFLINE 🔴]';
+        statusEl.style.color = 'var(--red-alert)';
+    }
+}
+
+// Verificación de estado del backend y servicios en tiempo real
 async function checkBackendHealth() {
     const badge = document.getElementById('backend-status-badge');
     const statusText = document.getElementById('backend-status-text');
@@ -92,6 +113,7 @@ async function checkBackendHealth() {
             badge.classList.remove('offline');
             statusText.innerText = `BACKEND: ONLINE | TU IP: ${data.clientIp}`;
             updateMinecraftUI(data.minecraft);
+            updateCorekeeperUI(data.corekeeper);
         } else {
             throw new Error('HTTP Error');
         }
@@ -119,8 +141,12 @@ async function executeCommand(cmdName) {
     appendTerminalLine(`[${timestamp}] > DISPATCHING: ${cmdName}...`, 'sys');
 
     const btnMc = document.getElementById('btn-minecraft');
+    const btnCk = document.getElementById('btn-corekeeper');
     if (cmdName === 'MINECRAFT_TOGGLE' && btnMc) {
         btnMc.disabled = true;
+    }
+    if (cmdName === 'COREKEEPER_TOGGLE' && btnCk) {
+        btnCk.disabled = true;
     }
 
     try {
@@ -134,6 +160,9 @@ async function executeCommand(cmdName) {
 
         if (data.minecraft) {
             updateMinecraftUI(data.minecraft);
+        }
+        if (data.corekeeper) {
+            updateCorekeeperUI(data.corekeeper);
         }
 
         if (res.ok && data.success) {
@@ -153,6 +182,9 @@ async function executeCommand(cmdName) {
     } finally {
         if (btnMc) {
             btnMc.disabled = false;
+        }
+        if (btnCk) {
+            btnCk.disabled = false;
         }
     }
 }
