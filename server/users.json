@@ -1,0 +1,28 @@
+{
+  "users": {
+    "yucef": {
+      "username": "Yucef",
+      "salt": "6bbb0f59bfac5106eed7cab002261200",
+      "hash": "125529f81284bf8d74d9bfc1df1648233f33e128b71f758b1515fa69bd981a2ab4b2ef316098bc9da4dcb2b9604f82bec0a5adc8b6830581fcb957abc962c320",
+      "createdAt": "2026-07-24T23:33:47.358Z"
+    },
+    "jesus": {
+      "username": "Jesus",
+      "salt": "661181d73709ee776a3794cccd9fceb2",
+      "hash": "e933994953d8469d0c485efa401e1f7521026407e1f1652ebcdd3947cc4d0d1b8a07d320dcd5bed89b42aa283e80f56be8d9cf11948c29bd4a1112854ebf61c6",
+      "createdAt": "2026-07-24T23:33:47.364Z"
+    },
+    "hector": {
+      "username": "Hector",
+      "salt": "11e33665bcc078817c721a617baea594",
+      "hash": "93863af8f103d8efa93d870147d7984050a2244693ae04cbb1a6221140cad2dd351d08b396ad39d280a195a9010817c8e3244d1bd4bb6a3483f568f00c07c800",
+      "createdAt": "2026-07-24T23:33:47.370Z"
+    },
+    "inge": {
+      "username": "Inge",
+      "salt": "8d643a5358100594d79332536c59106f",
+      "hash": "2777957dbc6f837c7f1b83e6f305a1175ab3032b7434225220db5d580c29bb69d199805dbe8d3efef564e353cac48b87ddecd35ea8dad96f5257687a39638abd",
+      "createdAt": "2026-07-24T23:33:47.376Z"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "port": 8080,
+  "host": "0.0.0.0",
+  "root": ".",
+  "open": false,
+  "ignore": "server,server/**,server/logs,server/logs/**,*.log,*.json,.git",
+  "wait": 1000
+}

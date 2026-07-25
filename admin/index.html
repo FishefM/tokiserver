@@ -6,6 +6,37 @@
     <title>TOKISERVER - ADMIN PANEL</title>
     <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/admin.css">
+    <script>
+        // Evitar el parpadeo de la pantalla de login si el usuario ya tiene token en localStorage
+        if (localStorage.getItem('toki_admin_token')) {
+            document.documentElement.classList.add('has-token');
+        }
+
+        // Interceptar y bloquear recargas automáticas enviadas por live-server u otros watchers en la pestaña admin
+        (function() {
+            if (typeof window.WebSocket !== 'undefined') {
+                const NativeWebSocket = window.WebSocket;
+                window.WebSocket = function(url, protocols) {
+                    const ws = new NativeWebSocket(url, protocols);
+                    let handler = null;
+                    Object.defineProperty(ws, 'onmessage', {
+                        get: function() { return handler; },
+                        set: function(fn) {
+                            handler = function(event) {
+                                if (event && event.data === 'reload') {
+                                    console.warn('[ADMIN] Se interceptó y bloqueó una recarga automática de live-server.');
+                                    return;
+                                }
+                                if (fn) fn.call(this, event);
+                            };
+                        }
+                    });
+                    return ws;
+                };
+                window.WebSocket.prototype = NativeWebSocket.prototype;
+            }
+        })();
+    </script>
 </head>
 <body>
 
@@ -17,17 +48,78 @@
     <!-- Contenedor de partículas ASCII -->
     <div class="particles-container" id="particles"></div>
 
-    <!-- Contenido Principal -->
-    <main class="main-container">
+    <!-- PANTALLA DE LOGIN DE USUARIO (SOLO VISIBLE CUANDO NO HAY SESIÓN ACCEDIDA) -->
+    <div class="auth-overlay" id="login-view" style="display: flex;">
+        <div class="login-card desktop-split">
+            <!-- Columna Izquierda (Escritorio): Avatar en Grande -->
+            <div class="login-left-col">
+                <div class="user-avatar-card-desktop" id="avatar-preview-box">
+                    <div class="avatar-frame-large">
+                        <img id="user-avatar-img" src="img/yucef.png" alt="Avatar" class="user-avatar-img-large">
+                    </div>
+                    <div class="user-avatar-details">
+                        <span id="user-avatar-role" class="user-avatar-role">NETRUNNER // YUCEF</span>
+                        <span class="user-avatar-status">[READY TO AUTHENTICATE]</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Columna Derecha: Formulario de Login -->
+            <div class="login-right-col">
+                <div class="login-header">
+                    <h1 class="login-title">> ADMIN // AUTHENTICATION</h1>
+                    <p class="login-subtitle">SELECCIONA TU USUARIO E INGRESA TU CONTRASEÑA</p>
+                </div>
+                
+                <form id="login-form" onsubmit="handleLogin(event)">
+                    <div class="input-group">
+                        <label for="login-username">> SELECCIONA USUARIO:</label>
+                        <select id="login-username" class="crt-input" onchange="updateLoginAvatar()" required>
+                            <option value="Yucef" selected>Yucef</option>
+                            <option value="Jesus">Jesus</option>
+                            <option value="Hector">Hector</option>
+                            <option value="Inge">Inge</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="login-password">> CONTRASEÑA:</label>
+                        <div class="password-input-wrapper">
+                            <input type="password" id="login-password" class="crt-input" placeholder="••••••••" required autocomplete="current-password">
+                            <button type="button" class="btn-toggle-pwd" onclick="togglePasswordVisibility('login-password', this)" title="Mostrar/Ocultar contraseña">👁️</button>
+                        </div>
+                    </div>
+
+                    <div class="auth-msg" id="login-error-msg"></div>
+
+                    <button type="submit" class="btn-cmd btn-login">
+                        <span>> INICIAR SESIÓN</span>
+                        <span>🔑</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTENIDO PRINCIPAL (VISIBLE SOLO AL INICIAR SESIÓN) -->
+    <main class="main-container" id="admin-main-panel" style="display: none;">
         <!-- Encabezado con estado del backend e IP del cliente -->
         <header class="header-panel">
             <div>
                 <h1 class="header-title">ADMIN // CONTROL_PANEL</h1>
                 <p style="font-size: 1.2rem; opacity: 0.8;">TOKISERVER ROOT ACCESS PROTOCOL v1.0</p>
             </div>
-            <div class="badge-status" id="backend-status-badge">
-                <span class="status-dot"></span>
-                <span id="backend-status-text">CONNECTING BACKEND...</span>
+            <div class="user-session-bar">
+                <div class="badge-status" id="backend-status-badge">
+                    <span class="status-dot"></span>
+                    <span id="backend-status-text">CONNECTING BACKEND...</span>
+                </div>
+                <div class="session-info">
+                    <img id="current-user-avatar-mini" src="img/yucef.png" class="mini-avatar" alt="Avatar">
+                    <span>👤 <strong id="current-user-display" style="color: var(--green);">---</strong></span>
+                    <button type="button" class="btn-action" onclick="openPasswordModal()">🔑 CAMBIAR CONTRASEÑA</button>
+                    <button type="button" class="btn-action danger" onclick="logout()">🚪 CERRAR SESIÓN</button>
+                </div>
             </div>
         </header>
 
@@ -36,30 +128,30 @@
             <h2 class="card-header">> SYSTEM_COMMANDS & DOCKER CONTROLS</h2>
             <div class="controls-grid">
                 <!-- Botón dinámico de Minecraft Server (mc_forge_server) -->
-                <button class="btn-cmd" id="btn-minecraft" onclick="executeCommand('MINECRAFT_TOGGLE')">
+                <button type="button" class="btn-cmd" id="btn-minecraft" onclick="executeCommand('MINECRAFT_TOGGLE', event)">
                     <span id="mc-btn-label">> MINECRAFT SERVER</span>
                     <span id="mc-btn-status" style="font-size: 1.1rem;">[CHECKING...]</span>
                 </button>
 
                 <!-- Botón dinámico de Core Keeper Server (corekeeper-server.service) -->
-                <button class="btn-cmd" id="btn-corekeeper" onclick="executeCommand('COREKEEPER_TOGGLE')">
+                <button type="button" class="btn-cmd" id="btn-corekeeper" onclick="executeCommand('COREKEEPER_TOGGLE', event)">
                     <span id="ck-btn-label">> CORE KEEPER SERVER</span>
                     <span id="ck-btn-status" style="font-size: 1.1rem;">[CHECKING...]</span>
                 </button>
 
-                <button class="btn-cmd" onclick="executeCommand('PURGE_CACHE')">
+                <button type="button" class="btn-cmd" onclick="executeCommand('PURGE_CACHE', event)">
                     <span>> PURGE_CACHE</span>
                     <span>🧹</span>
                 </button>
-                <button class="btn-cmd" onclick="executeCommand('SYS_DIAGNOSTICS')">
+                <button type="button" class="btn-cmd" onclick="executeCommand('SYS_DIAGNOSTICS', event)">
                     <span>> SYS_DIAGNOSTICS</span>
                     <span>🔍</span>
                 </button>
-                <button class="btn-cmd" onclick="executeCommand('VIEW_LOGS')">
+                <button type="button" class="btn-cmd" onclick="executeCommand('VIEW_LOGS', event)">
                     <span>> VIEW_LOGS</span>
                     <span>📜</span>
                 </button>
-                <button class="btn-cmd danger" onclick="executeCommand('LOCK_SESSION')">
+                <button type="button" class="btn-cmd danger" onclick="executeCommand('LOCK_SESSION', event)">
                     <span>> LOCK_SESSION</span>
                     <span>🔒</span>
                 </button>
@@ -74,6 +166,51 @@
             </div>
         </section>
     </main>
+
+    <!-- MODAL DE CAMBIO DE CONTRASEÑA -->
+    <div class="auth-overlay modal-overlay" id="password-modal" style="display: none;">
+        <div class="login-card modal-card">
+            <h2 class="login-title">> CAMBIAR CONTRASEÑA</h2>
+            <p class="login-subtitle">ACTUALIZA TU CONTRASEÑA PARA TU USUARIO EN TOKISERVER</p>
+
+            <form id="password-form" onsubmit="handleChangePassword(event)">
+                <div class="input-group">
+                    <label for="pwd-current">> CONTRASEÑA ACTUAL:</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="pwd-current" class="crt-input" required autocomplete="current-password">
+                        <button type="button" class="btn-toggle-pwd" onclick="togglePasswordVisibility('pwd-current', this)" title="Mostrar/Ocultar contraseña">👁️</button>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label for="pwd-new">> NUEVA CONTRASEÑA:</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="pwd-new" class="crt-input" placeholder="Mínimo 4 caracteres" required autocomplete="new-password">
+                        <button type="button" class="btn-toggle-pwd" onclick="togglePasswordVisibility('pwd-new', this)" title="Mostrar/Ocultar contraseña">👁️</button>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label for="pwd-confirm">> CONFIRMAR NUEVA CONTRASEÑA:</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="pwd-confirm" class="crt-input" required autocomplete="new-password">
+                        <button type="button" class="btn-toggle-pwd" onclick="togglePasswordVisibility('pwd-confirm', this)" title="Mostrar/Ocultar contraseña">👁️</button>
+                    </div>
+                </div>
+
+                <div class="auth-msg" id="modal-status-msg"></div>
+
+                <div class="modal-buttons">
+                    <button type="submit" class="btn-cmd">
+                        <span>> GUARDAR</span>
+                    </button>
+                    <button type="button" class="btn-cmd danger" onclick="closePasswordModal()">
+                        <span>> CANCELAR</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <!-- Script Modular del Panel -->
     <script src="js/admin.js"></script>

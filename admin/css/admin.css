@@ -263,4 +263,343 @@ body {
     .header-title { font-size: 1.8rem; }
     .controls-grid { grid-template-columns: 1fr; }
     .btn-cmd { font-size: 1.2rem; padding: 10px; white-space: normal; }
+    .user-session-bar { align-items: stretch; }
+    .session-info { flex-wrap: wrap; }
 }
+
+/* User Session Bar in Header */
+.user-session-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.session-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.2rem;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid var(--green);
+    padding: 6px 12px;
+}
+
+.btn-action {
+    background: rgba(0, 255, 65, 0.1);
+    color: var(--green);
+    border: 1px solid var(--green);
+    padding: 4px 10px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-action:hover {
+    background: rgba(0, 255, 65, 0.25);
+    box-shadow: 0 0 10px var(--green-glow);
+}
+
+.btn-action.danger {
+    color: var(--red-alert);
+    border-color: var(--red-alert);
+    background: rgba(255, 51, 51, 0.1);
+}
+
+.btn-action.danger:hover {
+    background: rgba(255, 51, 51, 0.25);
+    box-shadow: 0 0 10px rgba(255, 51, 51, 0.4);
+}
+
+/* Authentication Overlay & Login Screen */
+.auth-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(5, 5, 5, 0.88);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 2000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.login-card {
+    width: 100%;
+    max-width: 480px;
+    background: rgba(0, 15, 5, 0.95);
+    border: 2px solid var(--green);
+    box-shadow: 0 0 30px rgba(0, 255, 65, 0.3), inset 0 0 15px rgba(0, 255, 65, 0.1);
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.login-header {
+    border-bottom: 1px dashed var(--green);
+    padding-bottom: 15px;
+}
+
+.login-title {
+    font-size: 2rem;
+    color: var(--green);
+    text-shadow: 0 0 8px var(--green-glow);
+}
+
+.login-subtitle {
+    font-size: 1.1rem;
+    opacity: 0.8;
+    margin-top: 5px;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.input-group label {
+    font-size: 1.2rem;
+    color: var(--green);
+}
+
+.crt-input {
+    background: #000;
+    color: var(--green);
+    border: 1px solid var(--green);
+    padding: 12px 15px;
+    font-size: 1.3rem;
+    outline: none;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.crt-input:focus {
+    border-color: #ffffff;
+    box-shadow: 0 0 12px var(--green-glow);
+    background: rgba(0, 255, 65, 0.05);
+}
+
+.crt-input option {
+    background: #000;
+    color: var(--green);
+}
+
+.auth-msg {
+    min-height: 24px;
+    font-size: 1.2rem;
+    color: var(--red-alert);
+    word-break: break-word;
+}
+
+.auth-msg.success {
+    color: var(--green);
+}
+
+.btn-login {
+    width: 100%;
+    margin-top: 10px;
+}
+
+/* Modal formatting */
+.modal-overlay {
+    z-index: 3000;
+}
+
+.modal-card {
+    max-width: 520px;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.modal-buttons .btn-cmd {
+    flex: 1;
+    justify-content: center;
+}
+
+/* Ocultar pantalla de login de inmediato si existe token activo */
+html.has-token #login-view {
+    display: none !important;
+}
+
+html.has-token #admin-main-panel {
+    display: flex !important;
+}
+
+/* Envoltorio para botón de mostrar/ocultar contraseña */
+.password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.password-input-wrapper .crt-input {
+    padding-right: 50px;
+}
+
+.btn-toggle-pwd {
+    position: absolute;
+    right: 6px;
+    background: transparent;
+    border: none;
+    color: var(--green);
+    font-size: 1.3rem;
+    cursor: pointer;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+    opacity: 0.85;
+    user-select: none;
+}
+
+.btn-toggle-pwd:hover {
+    opacity: 1;
+    transform: scale(1.15);
+}
+
+/* Dynamic Avatar Card on Login Screen */
+.user-avatar-card {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background: rgba(0, 0, 0, 0.7);
+    border: 1px solid var(--green);
+    padding: 12px 15px;
+    box-shadow: inset 0 0 10px rgba(0, 255, 65, 0.15);
+    margin-bottom: 5px;
+}
+
+.user-avatar-img {
+    width: 75px;
+    height: 75px;
+    object-fit: cover;
+    border: 2px solid var(--green);
+    box-shadow: 0 0 12px var(--green-glow);
+    transition: all 0.3s ease;
+}
+
+.user-avatar-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.user-avatar-role {
+    font-size: 1.4rem;
+    color: var(--green);
+    text-shadow: 0 0 6px var(--green-glow);
+    letter-spacing: 1px;
+}
+
+.user-avatar-status {
+    font-size: 1.05rem;
+    opacity: 0.75;
+}
+
+/* Header Session Mini Avatar */
+.mini-avatar {
+    width: 28px;
+    height: 28px;
+    object-fit: cover;
+    border: 1px solid var(--green);
+    border-radius: 2px;
+    box-shadow: 0 0 6px var(--green-glow);
+}
+
+/* Desktop Split Layout for Login Card (50 / 50 Mitad y Mitad en pantallas grandes) */
+.login-card.desktop-split {
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 30px;
+    padding: 35px;
+}
+
+.login-left-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border-right: 1px dashed var(--green);
+    padding-right: 30px;
+}
+
+.login-right-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 20px;
+}
+
+.user-avatar-card-desktop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 16px;
+    width: 100%;
+}
+
+.avatar-frame-large {
+    width: 100%;
+    max-width: 280px;
+    aspect-ratio: 1 / 1;
+    border: 2px solid var(--green);
+    box-shadow: 0 0 25px var(--green-glow), inset 0 0 15px rgba(0, 255, 65, 0.2);
+    overflow: hidden;
+    background: #000;
+}
+
+.user-avatar-img-large {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease, filter 0.3s ease;
+}
+
+.user-avatar-card-desktop:hover .user-avatar-img-large {
+    transform: scale(1.04);
+}
+
+/* Responsivo para versión móvil (pantallas <= 768px apilado vertical) */
+@media (max-width: 768px) {
+    .login-card.desktop-split {
+        flex-direction: column;
+        max-width: 480px;
+        padding: 25px;
+        gap: 20px;
+    }
+
+    .login-left-col {
+        border-right: none;
+        border-bottom: 1px dashed var(--green);
+        padding-right: 0;
+        padding-bottom: 20px;
+    }
+
+    .avatar-frame-large {
+        max-width: 160px;
+    }
+}
+
+
+
+
+

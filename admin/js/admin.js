@@ -7,13 +7,38 @@ const getBackendUrl = () => {
     return '';
 };
 
+// Manejo de almacenamiento de sesión en localStorage
+const TOKEN_KEY = 'toki_admin_token';
+const USER_KEY = 'toki_admin_user';
+
+const getToken = () => localStorage.getItem(TOKEN_KEY);
+const getUser = () => localStorage.getItem(USER_KEY);
+
+const setSession = (token, username) => {
+    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(USER_KEY, username);
+    document.documentElement.classList.add('has-token');
+};
+
+const clearSession = () => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    document.documentElement.classList.remove('has-token');
+};
+
+let healthCheckInterval = null;
+
 // Cargar subdominios dinámicamente desde /config.json
 async function loadNavbar() {
     try {
         const response = await fetch('/config.json');
         const data = await response.json();
         const navbar = document.getElementById('dynamic-navbar');
+        if (!navbar) return;
         
+        // Conservar enlace HOME si ya existe
+        navbar.innerHTML = '<a href="/">HOME</a>';
+
         data.subdomains.forEach(sub => {
             const link = document.createElement('a');
             if (sub.url === '/admin' || sub.url === '/admin/') {
@@ -56,6 +81,222 @@ function initParticles() {
     }
 
     setInterval(createParticle, 150);
+}
+
+// Mapeo de avatares dinámicos por usuario
+const USER_AVATARS = {
+    'yucef': { img: 'img/yucef.png', role: 'NETRUNNER // YUCEF' },
+    'jesus': { img: 'img/jesus.png', role: 'SYS_OPERATOR // JESUS' },
+    'hector': { img: 'img/hector.png', role: 'SYSADMIN // HECTOR' },
+    'inge': { img: 'img/inge.png', role: 'LEAD_ENGINEER // INGE' }
+};
+
+// Actualizar avatar al seleccionar un usuario en el login
+function updateLoginAvatar() {
+    const usernameSelect = document.getElementById('login-username');
+    const avatarImg = document.getElementById('user-avatar-img');
+    const avatarRole = document.getElementById('user-avatar-role');
+    if (!usernameSelect || !avatarImg || !avatarRole) return;
+
+    const selected = usernameSelect.value.toLowerCase();
+    const info = USER_AVATARS[selected] || USER_AVATARS['yucef'];
+
+    avatarImg.src = info.img;
+    avatarRole.textContent = info.role;
+}
+
+function updateMiniAvatar(username) {
+    const miniAvatar = document.getElementById('current-user-avatar-mini');
+    if (!miniAvatar || !username) return;
+    const info = USER_AVATARS[username.toLowerCase()];
+    if (info) {
+        miniAvatar.src = info.img;
+    }
+}
+
+// Verificar autenticación actual del usuario
+async function checkAuthStatus() {
+    const token = getToken();
+    const loginView = document.getElementById('login-view');
+    const mainPanel = document.getElementById('admin-main-panel');
+    const currentUserDisplay = document.getElementById('current-user-display');
+
+    if (!token) {
+        document.documentElement.classList.remove('has-token');
+        if (loginView) loginView.style.display = 'flex';
+        if (mainPanel) mainPanel.style.display = 'none';
+        if (healthCheckInterval) clearInterval(healthCheckInterval);
+        updateLoginAvatar();
+        return false;
+    }
+
+    // Si existe token, mostramos inmediatamente el panel mientras valida de fondo
+    document.documentElement.classList.add('has-token');
+    if (loginView) loginView.style.display = 'none';
+    if (mainPanel) mainPanel.style.display = 'flex';
+    if (getUser()) {
+        if (currentUserDisplay) currentUserDisplay.textContent = getUser();
+        updateMiniAvatar(getUser());
+    }
+
+    try {
+        const res = await fetch(`${getBackendUrl()}/api/me`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            if (currentUserDisplay) currentUserDisplay.textContent = data.username;
+            updateMiniAvatar(data.username);
+            
+            checkBackendHealth();
+            if (!healthCheckInterval) {
+                healthCheckInterval = setInterval(checkBackendHealth, 4000);
+            }
+            return true;
+        } else {
+            clearSession();
+            if (loginView) loginView.style.display = 'flex';
+            if (mainPanel) mainPanel.style.display = 'none';
+            if (healthCheckInterval) clearInterval(healthCheckInterval);
+            updateLoginAvatar();
+            return false;
+        }
+    } catch (err) {
+        // En caso de problema de conexión temporal, mantenemos token pero permitimos ver panel si existe
+        if (getUser()) {
+            if (currentUserDisplay) currentUserDisplay.textContent = getUser();
+            updateMiniAvatar(getUser());
+        }
+        return false;
+    }
+}
+
+// Iniciar sesión
+async function handleLogin(e) {
+    e.preventDefault();
+    const usernameEl = document.getElementById('login-username');
+    const passwordEl = document.getElementById('login-password');
+    const errorMsgEl = document.getElementById('login-error-msg');
+
+    if (!usernameEl || !passwordEl) return;
+
+    const username = usernameEl.value.trim();
+    const password = passwordEl.value;
+
+    if (errorMsgEl) errorMsgEl.textContent = '';
+
+    try {
+        const res = await fetch(`${getBackendUrl()}/api/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+            setSession(data.token, data.username);
+            passwordEl.value = '';
+            await checkAuthStatus();
+            appendTerminalLine(`[SESIÓN INICIADA] Bienvenido ${data.username}. Acceso concedido al panel de administración.`, 'sys');
+        } else {
+            if (errorMsgEl) errorMsgEl.textContent = data.error || 'Credenciales incorrectas';
+        }
+    } catch (err) {
+        if (errorMsgEl) errorMsgEl.textContent = `Error al conectar con el servidor (${getBackendUrl() || '/api'})`;
+    }
+}
+
+// Cerrar sesión
+async function logout() {
+    const token = getToken();
+    if (token) {
+        try {
+            await fetch(`${getBackendUrl()}/api/logout`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+        } catch (err) {
+            console.error('Error al notificar logout al servidor:', err);
+        }
+    }
+    clearSession();
+    checkAuthStatus();
+}
+
+// Abrir modal de cambio de contraseña
+function openPasswordModal() {
+    const modal = document.getElementById('password-modal');
+    const statusMsg = document.getElementById('modal-status-msg');
+    if (statusMsg) statusMsg.textContent = '';
+    if (modal) modal.style.display = 'flex';
+}
+
+// Cerrar modal de cambio de contraseña
+function closePasswordModal() {
+    const modal = document.getElementById('password-modal');
+    const form = document.getElementById('password-form');
+    if (form) form.reset();
+    if (modal) modal.style.display = 'none';
+}
+
+// Procesar cambio de contraseña
+async function handleChangePassword(e) {
+    e.preventDefault();
+    const currentPassword = document.getElementById('pwd-current').value;
+    const newPassword = document.getElementById('pwd-new').value;
+    const confirmPassword = document.getElementById('pwd-confirm').value;
+    const statusMsg = document.getElementById('modal-status-msg');
+
+    if (statusMsg) {
+        statusMsg.className = 'auth-msg';
+        statusMsg.textContent = '';
+    }
+
+    if (newPassword !== confirmPassword) {
+        if (statusMsg) statusMsg.textContent = 'Las nuevas contraseñas no coinciden';
+        return;
+    }
+
+    if (newPassword.length < 4) {
+        if (statusMsg) statusMsg.textContent = 'La nueva contraseña debe tener al menos 4 caracteres';
+        return;
+    }
+
+    const token = getToken();
+    if (!token) {
+        if (statusMsg) statusMsg.textContent = 'Sesión no válida. Inicia sesión nuevamente.';
+        return;
+    }
+
+    try {
+        const res = await fetch(`${getBackendUrl()}/api/change-password`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ currentPassword, newPassword })
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+            if (statusMsg) {
+                statusMsg.className = 'auth-msg success';
+                statusMsg.textContent = '✓ Contraseña actualizada correctamente';
+            }
+            appendTerminalLine(`[SEGURIDAD] Tu contraseña ha sido actualizada con éxito.`, 'sys');
+            setTimeout(() => {
+                closePasswordModal();
+            }, 1200);
+        } else {
+            if (statusMsg) statusMsg.textContent = data.error || 'Error al cambiar contraseña';
+        }
+    } catch (err) {
+        if (statusMsg) statusMsg.textContent = 'Error de conexión con el backend';
+    }
 }
 
 // Actualizar la interfaz de usuario para el estado de Minecraft
@@ -118,7 +359,7 @@ async function checkBackendHealth() {
         if (res.ok) {
             const data = await res.json();
             badge.classList.remove('offline');
-            statusText.innerText = `BACKEND: ONLINE | TU IP: ${data.clientIp}`;
+            statusText.innerText = `BACKEND: ONLINE | IP: ${data.clientIp}`;
             updateMinecraftUI(data.minecraft);
             updateCorekeeperUI(data.corekeeper);
         } else {
@@ -143,7 +384,15 @@ function appendTerminalLine(text, type = 'sys') {
 }
 
 // Ejecutar comando vía Backend API
-async function executeCommand(cmdName) {
+async function executeCommand(cmdName, e) {
+    if (e && e.preventDefault) e.preventDefault();
+    const token = getToken();
+    if (!token) {
+        appendTerminalLine(`[ACCESO DENEGADO] No hay sesión activa. Por favor inicia sesión.`, 'err');
+        logout();
+        return;
+    }
+
     const timestamp = new Date().toLocaleTimeString();
     appendTerminalLine(`[${timestamp}] > DISPATCHING: ${cmdName}...`, 'sys');
 
@@ -159,11 +408,20 @@ async function executeCommand(cmdName) {
     try {
         const res = await fetch(`${getBackendUrl()}/api/command`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
             body: JSON.stringify({ command: cmdName })
         });
 
         const data = await res.json();
+
+        if (res.status === 401 || data.sessionExpired) {
+            appendTerminalLine(`[SESIÓN EXPIRADA] Tu sesión ha caducado. Vuelve a iniciar sesión.`, 'err');
+            logout();
+            return;
+        }
 
         if (data.minecraft) {
             updateMinecraftUI(data.minecraft);
@@ -173,7 +431,7 @@ async function executeCommand(cmdName) {
         }
 
         if (res.ok && data.success) {
-            appendTerminalLine(`[${data.timestamp}] [IP: ${data.clientIp}] > [SUCCESS] ${data.label}`, 'sys');
+            appendTerminalLine(`[${data.timestamp}] [USUARIO: ${data.user || getUser()}] > [SUCCESS] ${data.label}`, 'sys');
             if (data.stdout) {
                 data.stdout.split('\n').forEach(l => appendTerminalLine(l, 'out'));
             }
@@ -183,9 +441,15 @@ async function executeCommand(cmdName) {
                 data.stderr.split('\n').forEach(l => appendTerminalLine(l, 'err'));
             }
         }
+
+        if (cmdName === 'LOCK_SESSION') {
+            setTimeout(() => {
+                logout();
+            }, 1000);
+        }
     } catch (err) {
         appendTerminalLine(`[${timestamp}] > [CONNECTION_ERROR] No se pudo comunicar con el backend (${getBackendUrl() || '/api'})`, 'err');
-        appendTerminalLine(`> Asegúrate de haber iniciado el servidor backend con 'pnpm start' dentro de /server`, 'warn');
+        appendTerminalLine(`> Asegúrate de haber iniciado el servidor backend con 'npm start' dentro de /server`, 'warn');
     } finally {
         if (btnMc) {
             btnMc.disabled = false;
@@ -196,10 +460,26 @@ async function executeCommand(cmdName) {
     }
 }
 
+// Alternar visibilidad de contraseña (mostrar / ocultar)
+function togglePasswordVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+
+    if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = '🙈';
+        btn.title = 'Ocultar contraseña';
+    } else {
+        input.type = 'password';
+        btn.textContent = '👁️';
+        btn.title = 'Mostrar contraseña';
+    }
+}
+
 // Inicializar la aplicación cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
     loadNavbar();
     initParticles();
-    checkBackendHealth();
-    setInterval(checkBackendHealth, 4000);
+    checkAuthStatus();
 });
+

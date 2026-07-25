@@ -5,12 +5,14 @@ import { promisify } from 'util';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { loginUser, verifySession, logoutUser, changePassword } from './auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const LOGS_DIR = path.join(__dirname, 'logs');
+const DATA_DIR = path.join(__dirname, '.data');
+const LOGS_DIR = path.join(DATA_DIR, 'logs');
 
-// Crear el directorio dedicado /server/logs si no existe
+// Crear el directorio dedicado /server/.data/logs si no existe
 if (!fs.existsSync(LOGS_DIR)) {
   fs.mkdirSync(LOGS_DIR, { recursive: true });
 }
@@ -25,11 +27,11 @@ function getTodayLogPath() {
 }
 
 // Función auxiliar para registrar acciones en el archivo del día (sin sobrescribir nada)
-function logAudit(ip, command, success, detail = '') {
+function logAudit(ip, command, success, detail = '', username = 'ANONIMO') {
   const logFile = getTodayLogPath();
   const timestamp = new Date().toLocaleString('es-MX', { timeZoneName: 'short' });
   const statusStr = success ? 'EXITO' : 'FALLO';
-  const entry = `[${timestamp}] [IP: ${ip}] -> COMANDO: "${command}" | RESULTADO: ${statusStr} ${detail ? '| ' + detail : ''}\n`;
+  const entry = `[${timestamp}] [IP: ${ip}] [USUARIO: ${username}] -> COMANDO: "${command}" | RESULTADO: ${statusStr} ${detail ? '| ' + detail : ''}\n`;
 
   fs.appendFile(logFile, entry, (err) => {
     if (err) console.error('[ERROR AUDITORIA] No se pudo escribir en el archivo de logs:', err);
@@ -61,6 +63,27 @@ function getClientIp(req) {
     ip = '127.0.0.1 (Localhost)';
   }
   return ip || 'IP Desconocida';
+}
+
+// Middleware de autenticación para requerir sesión válida en rutas protegidas
+function requireAuth(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = (authHeader && authHeader.startsWith('Bearer '))
+    ? authHeader.slice(7)
+    : req.headers['x-auth-token'];
+
+  const session = verifySession(token);
+  if (!session) {
+    return res.status(401).json({
+      success: false,
+      error: 'NO_AUTORIZADO: Debes iniciar sesión en la pestaña de admin.',
+      sessionExpired: true
+    });
+  }
+
+  req.user = session.username;
+  req.token = token;
+  next();
 }
 
 // Función auxiliar para verificar el estado de Docker para Minecraft
@@ -104,6 +127,58 @@ app.use((req, res, next) => {
   const time = new Date().toLocaleTimeString();
   console.log(`[${time}] HTTP ${req.method} ${req.url} desde IP: ${clientIp}`);
   next();
+});
+
+// --- ENDPOINTS DE AUTENTICACIÓN ---
+
+// Endpoint de inicio de sesión
+app.post('/api/login', (req, res) => {
+  const clientIp = getClientIp(req);
+  const { username, password } = req.body;
+  const result = loginUser(username, password);
+
+  if (result.success) {
+    console.log(`[AUDIT LOGIN] Inicio de sesión exitoso: ${result.username} desde IP: ${clientIp}`);
+    logAudit(clientIp, 'LOGIN', true, 'Inicio de sesión exitoso', result.username);
+    return res.json(result);
+  } else {
+    console.warn(`[AUDIT LOGIN FALLO] Intento fallido para usuario "${username}" desde IP: ${clientIp}`);
+    logAudit(clientIp, 'LOGIN_FAILED', false, result.error, username || 'DESCONOCIDO');
+    return res.status(401).json(result);
+  }
+});
+
+// Endpoint para cerrar sesión
+app.post('/api/logout', requireAuth, (req, res) => {
+  const clientIp = getClientIp(req);
+  logoutUser(req.token);
+  logAudit(clientIp, 'LOGOUT', true, 'Cierre de sesión', req.user);
+  res.json({ success: true, message: 'Sesión cerrada correctamente' });
+});
+
+// Endpoint para verificar sesión activa
+app.get('/api/me', requireAuth, (req, res) => {
+  res.json({
+    authenticated: true,
+    username: req.user
+  });
+});
+
+// Endpoint para cambiar contraseña
+app.post('/api/change-password', requireAuth, (req, res) => {
+  const clientIp = getClientIp(req);
+  const { currentPassword, newPassword } = req.body;
+  const result = changePassword(req.user, currentPassword, newPassword);
+
+  if (result.success) {
+    console.log(`[AUDIT PASSWORD_CHANGE] ${req.user} cambió su contraseña desde IP: ${clientIp}`);
+    logAudit(clientIp, 'CHANGE_PASSWORD', true, 'Contraseña actualizada', req.user);
+    return res.json(result);
+  } else {
+    console.warn(`[AUDIT PASSWORD_CHANGE FALLO] ${req.user} falló al cambiar contraseña desde IP: ${clientIp}`);
+    logAudit(clientIp, 'CHANGE_PASSWORD_FAILED', false, result.error, req.user);
+    return res.status(400).json(result);
+  }
 });
 
 // Mapa seguro de comandos permitidos (Command Whitelist)
@@ -150,20 +225,21 @@ const COMMAND_MAP = {
   }
 };
 
-// Endpoint API para recibir comandos del panel administrativo
-app.post('/api/command', async (req, res) => {
+// Endpoint API para recibir comandos del panel administrativo (Protegido con requireAuth)
+app.post('/api/command', requireAuth, async (req, res) => {
   const clientIp = getClientIp(req);
   const { command } = req.body;
   const timestamp = new Date().toLocaleTimeString();
+  const currentUser = req.user;
 
   console.log(`\n--------------------------------------------------`);
-  console.log(`[AUDIT LOG] Hora: ${timestamp} | IP Solicitante: ${clientIp}`);
+  console.log(`[AUDIT LOG] Hora: ${timestamp} | IP Solicitante: ${clientIp} | Usuario: ${currentUser}`);
   console.log(`[AUDIT LOG] Comando Solicitado: "${command}"`);
 
   if (!command || !COMMAND_MAP[command]) {
-    console.warn(`[AUDIT ALERTA] IP ${clientIp} intentó ejecutar comando no permitido: "${command}"`);
+    console.warn(`[AUDIT ALERTA] Usuario ${currentUser} (IP ${clientIp}) intentó ejecutar comando no permitido: "${command}"`);
     console.log(`--------------------------------------------------\n`);
-    logAudit(clientIp, command || 'DESCONOCIDO', false, 'Comando no permitido');
+    logAudit(clientIp, command || 'DESCONOCIDO', false, 'Comando no permitido', currentUser);
 
     return res.status(400).json({
       success: false,
@@ -185,15 +261,16 @@ app.post('/api/command', async (req, res) => {
       const newStatus = await getMinecraftStatus();
       const ckStatus = await getCorekeeperStatus();
 
-      console.log(`[AUDIT DOCKER] ${actionLabel} completado por IP: ${clientIp}`);
+      console.log(`[AUDIT DOCKER] ${actionLabel} completado por usuario: ${currentUser} (IP: ${clientIp})`);
       console.log(`--------------------------------------------------\n`);
-      logAudit(clientIp, command, true, actionLabel);
+      logAudit(clientIp, command, true, actionLabel, currentUser);
 
       return res.json({
         success: true,
         command,
         label: actionLabel,
         clientIp,
+        user: currentUser,
         minecraft: newStatus,
         corekeeper: ckStatus,
         stdout: stdout.trim() || `Comando ejecutado: ${dockerCmd}`,
@@ -203,14 +280,15 @@ app.post('/api/command', async (req, res) => {
     } catch (err) {
       const newStatus = await getMinecraftStatus();
       const ckStatus = await getCorekeeperStatus();
-      console.error(`[AUDIT DOCKER ERROR] Fallo en ${dockerCmd} por IP: ${clientIp}`, err.message);
+      console.error(`[AUDIT DOCKER ERROR] Fallo en ${dockerCmd} por usuario: ${currentUser} (IP: ${clientIp})`, err.message);
       console.log(`--------------------------------------------------\n`);
-      logAudit(clientIp, command, false, `Error: ${err.message}`);
+      logAudit(clientIp, command, false, `Error: ${err.message}`, currentUser);
 
       return res.status(500).json({
         success: false,
         command,
         clientIp,
+        user: currentUser,
         minecraft: newStatus,
         corekeeper: ckStatus,
         error: `Fallo al gestionar contenedor (${MC_CONTAINER}): ${err.message}`,
@@ -233,15 +311,16 @@ app.post('/api/command', async (req, res) => {
       const newStatus = await getCorekeeperStatus();
       const mcStatus = await getMinecraftStatus();
 
-      console.log(`[AUDIT SYSTEMCTL] ${actionLabel} completado por IP: ${clientIp}`);
+      console.log(`[AUDIT SYSTEMCTL] ${actionLabel} completado por usuario: ${currentUser} (IP: ${clientIp})`);
       console.log(`--------------------------------------------------\n`);
-      logAudit(clientIp, command, true, actionLabel);
+      logAudit(clientIp, command, true, actionLabel, currentUser);
 
       return res.json({
         success: true,
         command,
         label: actionLabel,
         clientIp,
+        user: currentUser,
         minecraft: mcStatus,
         corekeeper: newStatus,
         stdout: stdout.trim() || `Comando ejecutado: ${sysCmd}`,
@@ -251,14 +330,15 @@ app.post('/api/command', async (req, res) => {
     } catch (err) {
       const newStatus = await getCorekeeperStatus();
       const mcStatus = await getMinecraftStatus();
-      console.error(`[AUDIT SYSTEMCTL ERROR] Fallo en ${sysCmd} por IP: ${clientIp}`, err.message);
+      console.error(`[AUDIT SYSTEMCTL ERROR] Fallo en ${sysCmd} por usuario: ${currentUser} (IP: ${clientIp})`, err.message);
       console.log(`--------------------------------------------------\n`);
-      logAudit(clientIp, command, false, `Error: ${err.message}`);
+      logAudit(clientIp, command, false, `Error: ${err.message}`, currentUser);
 
       return res.status(500).json({
         success: false,
         command,
         clientIp,
+        user: currentUser,
         minecraft: mcStatus,
         corekeeper: newStatus,
         error: `Fallo al gestionar servicio (corekeeper-server.service): ${err.message}`,
@@ -276,15 +356,16 @@ app.post('/api/command', async (req, res) => {
     const mcStatus = await getMinecraftStatus();
     const ckStatus = await getCorekeeperStatus();
 
-    console.log(`[AUDIT EXITOSO] Comando ${command} ejecutado correctamente para IP: ${clientIp}`);
+    console.log(`[AUDIT EXITOSO] Comando ${command} ejecutado correctamente por ${currentUser} (IP: ${clientIp})`);
     console.log(`--------------------------------------------------\n`);
-    logAudit(clientIp, command, true, target.label);
+    logAudit(clientIp, command, true, target.label, currentUser);
 
     res.json({
       success: true,
       command,
       label: target.label,
       clientIp,
+      user: currentUser,
       minecraft: mcStatus,
       corekeeper: ckStatus,
       stdout: stdout.trim(),
@@ -294,14 +375,15 @@ app.post('/api/command', async (req, res) => {
   } catch (err) {
     const mcStatus = await getMinecraftStatus();
     const ckStatus = await getCorekeeperStatus();
-    console.error(`[AUDIT ERROR] Fallo al ejecutar ${command} desde IP: ${clientIp}`, err.message);
+    console.error(`[AUDIT ERROR] Fallo al ejecutar ${command} por usuario: ${currentUser} (IP: ${clientIp})`, err.message);
     console.log(`--------------------------------------------------\n`);
-    logAudit(clientIp, command, false, err.message);
+    logAudit(clientIp, command, false, err.message, currentUser);
 
     res.status(500).json({
       success: false,
       command,
       clientIp,
+      user: currentUser,
       minecraft: mcStatus,
       corekeeper: ckStatus,
       error: err.message,
