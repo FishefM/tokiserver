@@ -23,6 +23,12 @@
       "salt": "8d643a5358100594d79332536c59106f",
       "hash": "2777957dbc6f837c7f1b83e6f305a1175ab3032b7434225220db5d580c29bb69d199805dbe8d3efef564e353cac48b87ddecd35ea8dad96f5257687a39638abd",
       "createdAt": "2026-07-24T23:33:47.376Z"
+    },
+    "kitzya": {
+      "username": "Kitzya",
+      "salt": "f70579f3d9ff670f15ece1d4fd2b88de",
+      "hash": "5dffe5148d465062030e12d92f1c003718cc7cd34ff3a55ab3e5b1578902ffc45ace69f30f2e4376cac43d03d9c56cc01a8b547bcd577fd877af68a32aab96fb",
+      "createdAt": "2026-07-25T18:44:17.123Z"
     }
   }
 }

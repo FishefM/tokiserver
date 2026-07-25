@@ -7,6 +7,13 @@
     <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../css/global.css">
     <link rel="stylesheet" href="css/admin.css">
+    <!-- Precarga de imágenes de avatares para evitar retrasos en producción -->
+    <link rel="preload" as="image" href="img/yucef.png">
+    <link rel="preload" as="image" href="img/jesus.png">
+    <link rel="preload" as="image" href="img/hector.png">
+    <link rel="preload" as="image" href="img/inge.png">
+    <link rel="preload" as="image" href="img/kitzya.png">
+    <link rel="preload" as="image" href="img/secret/env.jpg">
     <script>
         // Evitar el parpadeo de la pantalla de login si el usuario ya tiene token en localStorage
         if (localStorage.getItem('toki_admin_token')) {
@@ -84,6 +91,7 @@
                             <option value="Jesus">Jesus</option>
                             <option value="Hector">Hector</option>
                             <option value="Inge">Inge</option>
+                            <option value="Kitzya">Kitzya</option>
                         </select>
                     </div>
 
@@ -155,8 +163,8 @@
                     <span>> VIEW_LOGS</span>
                     <span>📜</span>
                 </button>
-                <button type="button" class="btn-cmd danger" onclick="executeCommand('LOCK_SESSION', event)">
-                    <span>> LOCK_SESSION</span>
+                <button type="button" class="btn-cmd danger" onclick="openEasterEggModal(event)">
+                    <span>> Descargar .env</span>
                     <span>🔒</span>
                 </button>
             </div>
@@ -213,6 +221,28 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- MODAL EASTER EGG (.ENV EXPOSED) -->
+    <div class="auth-overlay modal-overlay" id="easteregg-modal" style="display: none;" onclick="closeEasterEggModal(event)">
+        <div class="login-card modal-card easteregg-card" onclick="event.stopPropagation()">
+            <div class="easteregg-header">
+                <h2 class="login-title" style="color: var(--red-alert); text-shadow: 0 0 8px rgba(255, 51, 51, 0.5);">> SECRET_.ENV_EXPOSED 🔒</h2>
+                <button type="button" class="btn-close-modal" onclick="closeEasterEggModal(event)" title="Cerrar">✖</button>
+            </div>
+            <p class="login-subtitle">CONFIDENTIAL ENVIRONMENT CONFIGURATION FILE</p>
+
+            <div class="easteregg-img-container">
+                <img src="img/secret/env.jpg" alt=".env config" class="easteregg-img">
+            </div>
+
+            <div class="modal-buttons" style="margin-top: 15px;">
+                <button type="button" class="btn-cmd danger" onclick="closeEasterEggModal(event)">
+                    <span>> No mejor no</span>
+                    <span>✖</span>
+                </button>
+            </div>
         </div>
     </div>
 

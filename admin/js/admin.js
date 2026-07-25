@@ -8,7 +8,9 @@ import {
     navigateUser,
     togglePasswordVisibility,
     openPasswordModal,
-    closePasswordModal
+    closePasswordModal,
+    openEasterEggModal,
+    closeEasterEggModal
 } from './modules/authUI.js';
 
 import { appendTerminalLine } from './modules/consoleUI.js';
@@ -22,10 +24,27 @@ window.updateLoginAvatar = updateLoginAvatar;
 window.togglePasswordVisibility = togglePasswordVisibility;
 window.openPasswordModal = openPasswordModal;
 window.closePasswordModal = closePasswordModal;
+window.openEasterEggModal = openEasterEggModal;
+window.closeEasterEggModal = closeEasterEggModal;
+window.appendTerminalLine = appendTerminalLine;
 window.logout = logout;
 window.handleLogin = handleLogin;
 window.handleChangePassword = handleChangePassword;
 window.executeCommand = (cmdName, e) => executeCommand(cmdName, e, logout);
+
+// Aplicar restricciones de permisos según el usuario
+export function applyUserPermissions(username) {
+    const btnMc = document.getElementById('btn-minecraft');
+    const btnCk = document.getElementById('btn-corekeeper');
+    const isRestricted = username && username.toLowerCase() === 'kitzya';
+
+    if (btnMc) {
+        btnMc.style.display = isRestricted ? 'none' : 'flex';
+    }
+    if (btnCk) {
+        btnCk.style.display = isRestricted ? 'none' : 'flex';
+    }
+}
 
 // Verificar autenticación actual del usuario
 export async function checkAuthStatus() {
@@ -40,6 +59,7 @@ export async function checkAuthStatus() {
         if (mainPanel) mainPanel.style.display = 'none';
         if (healthCheckInterval) clearInterval(healthCheckInterval);
         updateLoginAvatar();
+        applyUserPermissions('');
         return false;
     }
 
@@ -50,6 +70,7 @@ export async function checkAuthStatus() {
     if (getUser()) {
         if (currentUserDisplay) currentUserDisplay.textContent = getUser();
         updateMiniAvatar(getUser());
+        applyUserPermissions(getUser());
     }
 
     try {
@@ -61,6 +82,7 @@ export async function checkAuthStatus() {
             const data = await res.json();
             if (currentUserDisplay) currentUserDisplay.textContent = data.username;
             updateMiniAvatar(data.username);
+            applyUserPermissions(data.username);
 
             checkBackendHealth();
             if (!healthCheckInterval) {
@@ -73,12 +95,14 @@ export async function checkAuthStatus() {
             if (mainPanel) mainPanel.style.display = 'none';
             if (healthCheckInterval) clearInterval(healthCheckInterval);
             updateLoginAvatar();
+            applyUserPermissions('');
             return false;
         }
     } catch (err) {
         if (getUser()) {
             if (currentUserDisplay) currentUserDisplay.textContent = getUser();
             updateMiniAvatar(getUser());
+            applyUserPermissions(getUser());
         }
         return false;
     }
@@ -110,6 +134,7 @@ export async function handleLogin(e) {
         if (res.ok && data.success) {
             setSession(data.token, data.username);
             passwordEl.value = '';
+            applyUserPermissions(data.username);
             await checkAuthStatus();
             appendTerminalLine(`[SESIÓN INICIADA] Bienvenido ${data.username}. Acceso concedido al panel de administración.`, 'sys');
         } else {
@@ -134,6 +159,7 @@ export async function logout() {
         }
     }
     clearSession();
+    applyUserPermissions('');
     checkAuthStatus();
 }
 

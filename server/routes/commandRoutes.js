@@ -30,6 +30,26 @@ router.post('/', requireAuth, async (req, res) => {
     });
   }
 
+  // Restricción de permisos por rol: Kitzya no tiene permiso para administrar Minecraft ni Core Keeper
+  const gameServerCommands = [
+    'MINECRAFT_TOGGLE', 'MINECRAFT_START', 'MINECRAFT_STOP',
+    'COREKEEPER_TOGGLE', 'COREKEEPER_START', 'COREKEEPER_STOP'
+  ];
+
+  if (currentUser && currentUser.toLowerCase() === 'kitzya' && gameServerCommands.includes(command)) {
+    console.warn(`[AUDIT ALERTA] Permiso denegado: El usuario ${currentUser} (IP ${clientIp}) intentó ejecutar ${command}`);
+    console.log(`--------------------------------------------------\n`);
+    logAudit(clientIp, command, false, 'Acceso denegado: usuario sin permisos para servidores de juego', currentUser);
+
+    return res.status(403).json({
+      success: false,
+      clientIp,
+      user: currentUser,
+      error: `Acceso denegado: El usuario ${currentUser} no tiene permisos para gestionar los servidores de juego.`,
+      timestamp
+    });
+  }
+
   // Toggle Minecraft
   if (command === 'MINECRAFT_TOGGLE') {
     const currentStatus = await getMinecraftStatus();

@@ -21,10 +21,28 @@ export const USER_AVATARS = {
     'yucef': { img: 'img/yucef.png', role: 'YUCEF', phrase: 'VIVA CRISTO REY' },
     'jesus': { img: 'img/jesus.png', role: 'JESUS', phrase: 'LET ME COOK' },
     'hector': { img: 'img/hector.png', role: 'HECTOR', phrase: 'YO DEBI PROGRAMAR ESTO' },
-    'inge': { img: 'img/inge.png', role: 'INGE', phrase: 'DEIGO?' }
+    'inge': { img: 'img/inge.png', role: 'INGE', phrase: 'DEIGO?' },
+    'kitzya': { img: 'img/kitzya.png', role: 'KITZYA', phrase: 'ONLINE' }
 };
 
-export const USERS_LIST = ['Yucef', 'Jesus', 'Hector', 'Inge'];
+export const USERS_LIST = ['Yucef', 'Jesus', 'Hector', 'Inge', 'Kitzya'];
+
+// Precarga y caché de imágenes en memoria para evitar retardos al cambiar de usuario
+const avatarCache = new Map();
+let currentAvatarLoadToken = 0;
+
+export function preloadAvatars() {
+    Object.values(USER_AVATARS).forEach(info => {
+        if (info.img && !avatarCache.has(info.img)) {
+            const img = new Image();
+            img.src = info.img;
+            avatarCache.set(info.img, img);
+        }
+    });
+}
+
+// Ejecutar precarga al importar el módulo
+preloadAvatars();
 
 export function updateLoginAvatar(animate = false) {
     const usernameSelect = document.getElementById('login-username');
@@ -36,18 +54,50 @@ export function updateLoginAvatar(animate = false) {
     const selected = usernameSelect.value.toLowerCase();
     const info = USER_AVATARS[selected] || USER_AVATARS['yucef'];
 
+    // Incrementar token para ignorar peticiones obsoletas al hacer clics rápidos
+    const loadToken = ++currentAvatarLoadToken;
+
+    // Actualizar roles y texto inmediatamente
+    avatarRole.textContent = info.role;
+    if (avatarPhrase) avatarPhrase.textContent = info.phrase || '';
+
+    const applyImage = () => {
+        if (loadToken === currentAvatarLoadToken) {
+            avatarImg.src = info.img;
+            if (animate) {
+                setTimeout(() => avatarImg.classList.remove('fading'), 50);
+            } else {
+                avatarImg.classList.remove('fading');
+            }
+        }
+    };
+
     if (animate) {
         avatarImg.classList.add('fading');
-        setTimeout(() => {
-            avatarImg.src = info.img;
-            avatarRole.textContent = info.role;
-            avatarImg.classList.remove('fading');
-            avatarPhrase.textContent = info.phrase || '';
-        }, 180);
+    }
+
+    // Obtener o registrar en caché
+    let cachedImg = avatarCache.get(info.img);
+    if (!cachedImg) {
+        cachedImg = new Image();
+        cachedImg.src = info.img;
+        avatarCache.set(info.img, cachedImg);
+    }
+
+    if (cachedImg.complete && cachedImg.naturalWidth !== 0) {
+        if (animate) {
+            setTimeout(applyImage, 100);
+        } else {
+            applyImage();
+        }
     } else {
-        avatarImg.src = info.img;
-        avatarRole.textContent = info.role;
-        avatarPhrase.textContent = info.phrase || '';
+        cachedImg.onload = () => applyImage();
+        cachedImg.onerror = () => {
+            if (loadToken === currentAvatarLoadToken) {
+                console.warn(`[AVATAR] Error al cargar la imagen: ${info.img}`);
+                avatarImg.classList.remove('fading');
+            }
+        };
     }
 }
 
@@ -99,5 +149,20 @@ export function closePasswordModal() {
     const modal = document.getElementById('password-modal');
     const form = document.getElementById('password-form');
     if (form) form.reset();
+    if (modal) modal.style.display = 'none';
+}
+
+export function openEasterEggModal(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    const modal = document.getElementById('easteregg-modal');
+    if (modal) modal.style.display = 'flex';
+    if (typeof window.appendTerminalLine === 'function') {
+        window.appendTerminalLine(`[ALERTA DE SEGURIDAD] ¡Intento de descarga de archivo .env detectado!`, 'err');
+    }
+}
+
+export function closeEasterEggModal(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    const modal = document.getElementById('easteregg-modal');
     if (modal) modal.style.display = 'none';
 }

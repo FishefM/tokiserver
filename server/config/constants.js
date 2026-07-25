@@ -14,7 +14,7 @@ export const USERS_FILE = path.join(DATA_DIR, 'users.json');
 export const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
 
 // Lista fija de operadores permitidos
-export const FIXED_USERS = ['Yucef', 'Jesus', 'Hector', 'Inge'];
+export const FIXED_USERS = ['Yucef', 'Jesus', 'Hector', 'Inge', 'Kitzya'];
 
 // Mapa seguro de comandos permitidos (Command Whitelist)
 export const COMMAND_MAP = {

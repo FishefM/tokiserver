@@ -68,16 +68,42 @@ function verifyPassword(password, salt, expectedHash) {
 }
 
 function loadUsers() {
+  let usersData;
   if (!fs.existsSync(USERS_FILE)) {
     return initUsers();
   }
   try {
     const data = fs.readFileSync(USERS_FILE, 'utf8');
-    return JSON.parse(data);
+    usersData = JSON.parse(data);
   } catch (err) {
     console.error('[AUTH ERROR] No se pudo leer users.json, reinicializando...', err);
     return initUsers();
   }
+
+  let modified = false;
+  FIXED_USERS.forEach((username) => {
+    const key = username.toLowerCase();
+    if (!usersData || !usersData.users || !usersData.users[key]) {
+      if (!usersData) usersData = { users: {} };
+      if (!usersData.users) usersData.users = {};
+      const defaultPassword = generateRandomPassword(username);
+      const { salt, hash } = hashPassword(defaultPassword);
+      usersData.users[key] = {
+        username,
+        salt,
+        hash,
+        createdAt: new Date().toISOString()
+      };
+      modified = true;
+      console.log(`[AUTH] Nuevo usuario fijo añadido: ${username} | Contraseña por defecto: ${defaultPassword}`);
+    }
+  });
+
+  if (modified) {
+    saveUsers(usersData);
+  }
+
+  return usersData;
 }
 
 function saveUsers(usersData) {
@@ -132,12 +158,12 @@ export function loginUser(usernameInput, passwordInput) {
   const user = usersData.users[key];
 
   if (!user) {
-    return { success: false, error: 'Usuario o contraseña incorrectos' };
+    return { success: false, error: 'No son adivinanzas w' };
   }
 
   const isValid = verifyPassword(passwordInput, user.salt, user.hash);
   if (!isValid) {
-    return { success: false, error: 'Usuario o contraseña incorrectos' };
+    return { success: false, error: 'No son adivinanzas w' };
   }
 
   const token = crypto.randomBytes(32).toString('hex');
