@@ -24,10 +24,15 @@ app.use((req, res, next) => {
   next();
 });
 
-// Enrutadores API
+// Enrutadores API (Soporta proxy Nginx con o sin recorte de prefijo /api)
 app.use('/api', authRoutes);
+app.use('/', authRoutes);
+
 app.use('/api/command', commandRoutes);
+app.use('/command', commandRoutes);
+
 app.use('/api/status', statusRoutes);
+app.use('/status', statusRoutes);
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n==================================================`);
