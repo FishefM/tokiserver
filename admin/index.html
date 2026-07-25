@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TOKISERVER - ADMIN PANEL</title>
     <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/global.css">
     <link rel="stylesheet" href="css/admin.css">
     <script>
         // Evitar el parpadeo de la pantalla de login si el usuario ya tiene token en localStorage
@@ -48,18 +49,22 @@
     <!-- Contenedor de partículas ASCII -->
     <div class="particles-container" id="particles"></div>
 
-    <!-- PANTALLA DE LOGIN DE USUARIO (SOLO VISIBLE CUANDO NO HAY SESIÓN ACCEDIDA) -->
+    <!-- PANTALLA DE LOGIN DE USUARIO  -->
     <div class="auth-overlay" id="login-view" style="display: flex;">
         <div class="login-card desktop-split">
-            <!-- Columna Izquierda (Escritorio): Avatar en Grande -->
+            <!-- Columna Izquierda (Escritorio) -->
             <div class="login-left-col">
                 <div class="user-avatar-card-desktop" id="avatar-preview-box">
-                    <div class="avatar-frame-large">
-                        <img id="user-avatar-img" src="img/yucef.png" alt="Avatar" class="user-avatar-img-large">
+                    <div class="avatar-carousel-wrapper">
+                        <button type="button" class="btn-avatar-nav prev" onclick="navigateUser(-1)" title="Usuario anterior">◀</button>
+                        <div class="avatar-frame-large">
+                            <img id="user-avatar-img" src="img/yucef.png" alt="Avatar" class="user-avatar-img-large">
+                        </div>
+                        <button type="button" class="btn-avatar-nav next" onclick="navigateUser(1)" title="Siguiente usuario">▶</button>
                     </div>
                     <div class="user-avatar-details">
-                        <span id="user-avatar-role" class="user-avatar-role">NETRUNNER // YUCEF</span>
-                        <span class="user-avatar-status">[READY TO AUTHENTICATE]</span>
+                        <span id="user-avatar-role" class="user-avatar-role">YUCEF</span>
+                        <span id="user-avatar-phrase" class="user-avatar-status">VIVA CRISTO REY</span>
                     </div>
                 </div>
             </div>
@@ -67,14 +72,14 @@
             <!-- Columna Derecha: Formulario de Login -->
             <div class="login-right-col">
                 <div class="login-header">
-                    <h1 class="login-title">> ADMIN // AUTHENTICATION</h1>
-                    <p class="login-subtitle">SELECCIONA TU USUARIO E INGRESA TU CONTRASEÑA</p>
+                    <h1 class="login-title">> LOGIN</h1>
+                    <p class="login-subtitle">¿Quién anda molestando hoy?</p>
                 </div>
                 
                 <form id="login-form" onsubmit="handleLogin(event)">
                     <div class="input-group">
-                        <label for="login-username">> SELECCIONA USUARIO:</label>
-                        <select id="login-username" class="crt-input" onchange="updateLoginAvatar()" required>
+                        <label for="login-username">> USADO DIGO USUARIO:</label>
+                        <select id="login-username" class="crt-input" onchange="updateLoginAvatar(true)" required>
                             <option value="Yucef" selected>Yucef</option>
                             <option value="Jesus">Jesus</option>
                             <option value="Hector">Hector</option>
@@ -83,9 +88,9 @@
                     </div>
 
                     <div class="input-group">
-                        <label for="login-password">> CONTRASEÑA:</label>
+                        <label for="login-password">> SECRETO:</label>
                         <div class="password-input-wrapper">
-                            <input type="password" id="login-password" class="crt-input" placeholder="••••••••" required autocomplete="current-password">
+                            <input type="password" id="login-password" class="crt-input" placeholder="Si bro, aqui va la contraseña" required autocomplete="current-password">
                             <button type="button" class="btn-toggle-pwd" onclick="togglePasswordVisibility('login-password', this)" title="Mostrar/Ocultar contraseña">👁️</button>
                         </div>
                     </div>
@@ -106,7 +111,7 @@
         <!-- Encabezado con estado del backend e IP del cliente -->
         <header class="header-panel">
             <div>
-                <h1 class="header-title">ADMIN // CONTROL_PANEL</h1>
+                <h1 class="header-title">CONTROL_PANEL</h1>
                 <p style="font-size: 1.2rem; opacity: 0.8;">TOKISERVER ROOT ACCESS PROTOCOL v1.0</p>
             </div>
             <div class="user-session-bar">
@@ -115,7 +120,6 @@
                     <span id="backend-status-text">CONNECTING BACKEND...</span>
                 </div>
                 <div class="session-info">
-                    <img id="current-user-avatar-mini" src="img/yucef.png" class="mini-avatar" alt="Avatar">
                     <span>👤 <strong id="current-user-display" style="color: var(--green);">---</strong></span>
                     <button type="button" class="btn-action" onclick="openPasswordModal()">🔑 CAMBIAR CONTRASEÑA</button>
                     <button type="button" class="btn-action danger" onclick="logout()">🚪 CERRAR SESIÓN</button>
@@ -212,7 +216,9 @@
         </div>
     </div>
 
-    <!-- Script Modular del Panel -->
-    <script src="js/admin.js"></script>
+    <!-- Scripts Modulares del Panel -->
+    <script src="../js/navbar.js"></script>
+    <script src="../js/particles.js"></script>
+    <script type="module" src="js/admin.js"></script>
 </body>
 </html>

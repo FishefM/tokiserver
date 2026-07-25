@@ -1,18 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Usar carpeta oculta .data para que live-server, nodemon y watchers ignoren cambios en datos/logs
-const DATA_DIR = path.join(__dirname, '.data');
-const LOGS_DIR = path.join(DATA_DIR, 'logs');
-const USERS_FILE = path.join(DATA_DIR, 'users.json');
-const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
-
-const FIXED_USERS = ['Yucef', 'Jesus', 'Hector', 'Inge'];
+import { DATA_DIR, LOGS_DIR, USERS_FILE, SESSIONS_FILE, FIXED_USERS } from './config/constants.js';
 
 // Asegurar directorios
 if (!fs.existsSync(DATA_DIR)) {
@@ -20,16 +9,6 @@ if (!fs.existsSync(DATA_DIR)) {
 }
 if (!fs.existsSync(LOGS_DIR)) {
   fs.mkdirSync(LOGS_DIR, { recursive: true });
-}
-
-// Migrar archivos previos si existen en server/ raíz
-const oldUsers = path.join(__dirname, 'users.json');
-if (fs.existsSync(oldUsers) && !fs.existsSync(USERS_FILE)) {
-  try { fs.copyFileSync(oldUsers, USERS_FILE); } catch (e) {}
-}
-const oldSessions = path.join(__dirname, 'sessions.json');
-if (fs.existsSync(oldSessions) && !fs.existsSync(SESSIONS_FILE)) {
-  try { fs.copyFileSync(oldSessions, SESSIONS_FILE); } catch (e) {}
 }
 
 function loadSessions() {

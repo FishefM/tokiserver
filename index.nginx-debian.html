@@ -5,96 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TOKISERVER</title>
     <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/global.css">
     <style>
-        :root {
-            --green: #00ff41;
-            --dark-bg: #050505;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'VT323', monospace;
-        }
-
-        body {
-            background-color: var(--dark-bg);
-            color: var(--green);
-            overflow-x: hidden;
-            overflow-y: auto;
-        }
-
-        /* Navbar CSS */
-        .navbar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            background: rgba(5, 5, 5, 0.7);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border-bottom: 2px solid var(--green);
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-            padding: 10px 0;
-            z-index: 1000;
-            box-shadow: 0 0 15px rgba(0, 255, 65, 0.3);
-        }
-
-        .navbar a {
-            color: var(--green);
-            text-decoration: none;
-            margin: 5px 15px;
-            font-size: 1.5rem;
-            text-transform: uppercase;
-            padding: 5px 10px;
-            border: 1px solid transparent;
-            transition: all 0.3s;
-            opacity: 0.8;
-        }
-
-        .navbar a:hover {
-            border: 1px solid var(--green);
-            background: rgba(0, 255, 65, 0.15);
-            box-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
-            opacity: 1;
-            backdrop-filter: blur(5px);
-        }
-
-        .particles-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-            pointer-events: none;
-        }
-
-        .particle {
-            position: absolute;
-            top: -20px;
-            color: var(--green);
-            font-size: 1.2rem;
-            opacity: 0.3;
-            animation: fall linear infinite;
-        }
-
-        @keyframes fall {
-            to { transform: translateY(110vh); }
-        }
-
         .hero-section {
             position: relative;
             z-index: 10;
             min-height: 100vh;
             width: 100%;
             display: flex;
-            align-items: center; /* Centrado vertical */
-            justify-content: center; /* Alineado a la izquierda */
-            padding: 80px 8% 20px; /* Margen superior para el navbar */
+            align-items: center;
+            justify-content: center;
+            padding: 80px 8% 20px;
         }
 
         .content-wrapper {
@@ -114,8 +35,8 @@
             border: 4px solid var(--green);
             box-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
             margin-bottom: 1.5rem;
-            filter: hue-rotate(100deg) contrast(120%); /* Efecto retro */
-            transition: transform 0.3s;
+            filter: hue-rotate(100deg) contrast(120%);
+            transition: transform 0.3s ease;
         }
 
         .meme-img:hover {
@@ -151,11 +72,6 @@
         @keyframes blink { 50% { opacity: 0; } }
 
         @media (max-width: 600px) {
-            .navbar a {
-                margin: 5px 8px;
-                font-size: 1.1rem;
-                padding: 3px 6px;
-            }
             .hero-section { padding: 100px 5% 40px; }
             .meme-img { width: 120px; height: 120px; }
             .terminal-log { font-size: 1rem; }
@@ -164,10 +80,12 @@
 </head>
 <body>
 
+    <!-- Navegación Dinámica Global -->
     <nav class="navbar" id="dynamic-navbar">
-        <a href="/">HOME</a>
+        <a href="/" class="active">HOME</a>
     </nav>
 
+    <!-- Partículas ASCII Globales -->
     <div class="particles-container" id="particles"></div>
 
     <section class="hero-section">
@@ -186,54 +104,14 @@
         </div>
     </section>
 
+    <!-- Scripts Modulares Globales -->
+    <script src="js/navbar.js"></script>
+    <script src="js/particles.js"></script>
     <script>
-        // Cargar los subdominios dinámicamente
-        async function loadNavbar() {
-            try {
-                const response = await fetch('/config.json');
-                const data = await response.json();
-                const navbar = document.getElementById('dynamic-navbar');
-                
-                data.subdomains.forEach(sub => {
-                    const link = document.createElement('a');
-                    // Si el URL empieza con ':', lo tratamos como un cambio de puerto en el mismo host
-                    if (sub.url.startsWith(':')) {
-                        link.href = window.location.protocol + "//" + window.location.hostname + sub.url;
-                    } else {
-                        link.href = sub.url;
-                    }
-                    link.innerText = sub.name;
-                    navbar.appendChild(link);
-                });
-            } catch (error) {
-                console.error('Error al cargar la configuración:', error);
-            }
-        }
-        
-        loadNavbar();
-
-        const container = document.getElementById('particles');
-        const chars = ['0', '1', '{', '}', '>', '_', '$', 'X'];
-        
-        function createParticle() {
-            const p = document.createElement('div');
-            p.classList.add('particle');
-            p.innerText = chars[Math.floor(Math.random() * chars.length)];
-            
-            p.style.left = Math.random() * 100 + 'vw';
-            const duration = Math.random() * 5 + 3;
-            p.style.animationDuration = duration + 's';
-            p.style.opacity = Math.random();
-            
-            container.appendChild(p);
-
-            setTimeout(() => {
-                p.remove();
-            }, duration * 1000);
-        }
-
-        setInterval(createParticle, 150);
+        document.addEventListener('DOMContentLoaded', () => {
+            loadNavbar('/');
+            initParticles();
+        });
     </script>
-
 </body>
 </html>
