@@ -5,224 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TOKISERVER - DRIVE</title>
     <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../css/global.css">
-    <style>
-        :root {
-            --magenta-neon: #ff007f;
-            --magenta-glow: rgba(255, 0, 127, 0.45);
-        }
-
-        .drive-container {
-            position: relative;
-            z-index: 10;
-            width: 100%;
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 100px 5% 60px;
-        }
-
-        .drive-header {
-            margin-bottom: 40px;
-            text-align: center;
-        }
-
-        .drive-title {
-            font-size: clamp(3rem, 8vw, 6rem);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: var(--green);
-            text-shadow: 3px 3px 0px #000, 5px 5px 12px var(--green-glow);
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 15px;
-        }
-
-        .header-icon {
-            width: 52px;
-            height: 52px;
-            background-color: var(--magenta-neon);
-            -webkit-mask: url('/img/icons/folder.svg') no-repeat center / contain;
-            mask: url('/img/icons/folder.svg') no-repeat center / contain;
-            filter: drop-shadow(0 0 12px var(--magenta-neon));
-        }
-
-        .terminal-banner {
-            font-size: 1.3rem;
-            background: rgba(0, 0, 0, 0.75);
-            color: var(--green);
-            padding: 15px 20px;
-            border-left: 4px solid var(--green);
-            border-right: 4px solid var(--magenta-neon);
-            max-width: 800px;
-            margin: 0 auto 30px;
-            text-align: left;
-            box-shadow: 0 0 15px rgba(0, 255, 65, 0.15);
-        }
-
-        .cursor {
-            display: inline-block;
-            width: 10px;
-            height: 20px;
-            background-color: var(--green);
-            animation: blink 0.8s infinite;
-            vertical-align: middle;
-        }
-
-        @keyframes blink { 50% { opacity: 0; } }
-
-        .section-header {
-            font-size: 1.8rem;
-            text-transform: uppercase;
-            color: var(--green);
-            border-bottom: 2px dashed var(--green);
-            padding-bottom: 8px;
-            margin-bottom: 25px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            text-shadow: 0 0 8px var(--green-glow);
-        }
-
-        .cards-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 25px;
-        }
-
-        /* Tarjeta Predominante Verde */
-        .card {
-            background: var(--panel-bg);
-            border: 2px solid var(--green);
-            border-radius: 4px;
-            padding: 24px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
-            box-shadow: 0 0 12px rgba(0, 255, 65, 0.15);
-            text-decoration: none;
-            color: var(--green);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 3px;
-            background: var(--green);
-            box-shadow: 0 0 10px var(--green);
-        }
-
-        .card:hover {
-            transform: translateY(-6px);
-            box-shadow: 0 0 30px rgba(0, 255, 65, 0.35);
-            background: rgba(0, 25, 10, 0.92);
-        }
-
-        .card-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 15px;
-        }
-
-        /* Ícono Resaltado en Rosa Magenta Neón */
-        .card-icon-wrapper {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 50px;
-            height: 50px;
-            background: rgba(255, 0, 127, 0.12);
-            border: 1px solid var(--magenta-neon);
-            border-radius: 4px;
-            box-shadow: 0 0 12px var(--magenta-glow);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        .card:hover .card-icon-wrapper {
-            transform: scale(1.12) rotate(-3deg);
-            background: rgba(255, 0, 127, 0.25);
-            box-shadow: 0 0 20px var(--magenta-neon);
-        }
-
-        .pixel-icon-mask {
-            width: 32px;
-            height: 32px;
-            background-color: var(--magenta-neon);
-            -webkit-mask-size: contain;
-            -webkit-mask-repeat: no-repeat;
-            -webkit-mask-position: center;
-            mask-size: contain;
-            mask-repeat: no-repeat;
-            mask-position: center;
-            filter: drop-shadow(0 0 8px var(--magenta-neon));
-        }
-
-        .card-route-tag {
-            font-size: 0.95rem;
-            background: rgba(0, 255, 65, 0.15);
-            border: 1px solid var(--green);
-            color: var(--green);
-            padding: 3px 10px;
-            border-radius: 3px;
-            letter-spacing: 1px;
-        }
-
-        .card-title {
-            font-size: 2rem;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-            color: var(--green);
-        }
-
-        .card-desc {
-            font-size: 1.15rem;
-            opacity: 0.85;
-            margin-bottom: 25px;
-            line-height: 1.35;
-            color: var(--green);
-        }
-
-        /* Botón Resaltado en Verde Matrix */
-        .card-btn {
-            display: inline-block;
-            text-align: center;
-            background: rgba(0, 255, 65, 0.1);
-            border: 1px solid var(--green);
-            color: var(--green);
-            padding: 10px 15px;
-            font-size: 1.4rem;
-            text-transform: uppercase;
-            transition: all 0.25s ease;
-            margin-top: auto;
-        }
-
-        .card:hover .card-btn {
-            background: var(--green);
-            color: #000;
-            font-weight: bold;
-            box-shadow: 0 0 18px var(--green);
-        }
-
-        @media (max-width: 600px) {
-            .drive-container { padding: 90px 5% 40px; }
-            .terminal-banner { font-size: 1rem; }
-            .card-title { font-size: 1.7rem; }
-        }
-    </style>
+    <link rel="stylesheet" href="/drive/css/drive.css">
 </head>
 <body>
 
     <!-- Navegación Dinámica Global -->
     <nav class="navbar" id="dynamic-navbar">
         <a href="/">HOME</a>
+        <a href="/drive">DRIVE</a>
     </nav>
 
     <!-- Partículas ASCII Globales -->
@@ -236,66 +26,25 @@
             </h1>
             
             <div class="terminal-banner">
-                <p>> LOCATION: /drive</p>
-                <p>> STORAGE_ENGINE: NGINX AUTOINDEX</p>
-                <p>> STATUS: SERVING FILES & FOLDERS<span class="cursor"></span></p>
+                <p id="drive-location-tag">> LOCATION: /drive</p>
+                <p>> STORAGE_ENGINE: TOKISERVER AUTOMATIC EXPLORER</p>
+                <p>> STATUS: SERVING FILES & DIRECTORIES<span class="cursor"></span></p>
             </div>
         </header>
 
-        <h2 class="section-header">📁 CARPETAS DE DESCARGA DISPONIBLES</h2>
+        <div class="nav-back-bar">
+            <a href="/drive" class="btn-back" id="drive-back-btn" style="display: none;">‹ VOLVER A /DRIVE</a>
+        </div>
+
+        <h2 class="section-header" id="drive-section-title">📁 CARPETAS DE DESCARGA DISPONIBLES</h2>
         <div class="cards-grid" id="drive-folders-grid">
-            <!-- Cargado dinámicamente -->
+            <!-- Cargado dinámicamente mediante JS -->
         </div>
     </main>
 
     <!-- Scripts Modulares Globales -->
-    <script src="../js/navbar.js"></script>
-    <script src="../js/particles.js"></script>
-    <script>
-        async function loadDriveFolders() {
-            try {
-                const res = await fetch('/config.json');
-                const data = await res.json();
-                
-                const grid = document.getElementById('drive-folders-grid');
-                if (!grid || !data || !data.driveFolders) return;
-                
-                grid.innerHTML = '';
-                
-                data.driveFolders.forEach(folder => {
-                    const card = document.createElement('a');
-                    card.href = folder.url;
-                    card.className = 'card';
-                    
-                    const iconName = folder.icon || 'folder';
-                    const iconPath = `/img/icons/${iconName}.svg`;
-                    
-                    card.innerHTML = `
-                        <div>
-                            <div class="card-header">
-                                <div class="card-icon-wrapper">
-                                    <span class="pixel-icon-mask" style="-webkit-mask-image: url('${iconPath}'); mask-image: url('${iconPath}');"></span>
-                                </div>
-                                <span class="card-route-tag">${folder.url}</span>
-                            </div>
-                            <h3 class="card-title">${folder.name}</h3>
-                            <p class="card-desc">${folder.description || 'Explorar archivos de descarga'}</p>
-                        </div>
-                        <div class="card-btn">[ EXPLORAR ARCHIVOS ]</div>
-                    `;
-                    
-                    grid.appendChild(card);
-                });
-            } catch (err) {
-                console.error('[DRIVE] Error al cargar carpetas:', err);
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            loadNavbar('/drive');
-            initParticles();
-            loadDriveFolders();
-        });
-    </script>
+    <script src="/js/navbar.js"></script>
+    <script src="/js/particles.js"></script>
+    <script src="/drive/js/drive.js"></script>
 </body>
 </html>

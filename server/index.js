@@ -10,6 +10,7 @@ import { getDb } from './db.js';
 import authRoutes from './routes/authRoutes.js';
 import commandRoutes from './routes/commandRoutes.js';
 import statusRoutes from './routes/statusRoutes.js';
+import driveRoutes from './routes/driveRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -39,10 +40,12 @@ app.use((req, res, next) => {
 app.use('/api', authRoutes);
 app.use('/api/command', commandRoutes);
 app.use('/api/status', statusRoutes);
+app.use('/api/drive', driveRoutes);
 
 app.use('/', authRoutes);
 app.use('/command', commandRoutes);
 app.use('/status', statusRoutes);
+app.use('/drive', driveRoutes);
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n==================================================`);

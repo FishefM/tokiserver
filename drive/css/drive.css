@@ -1,0 +1,344 @@
+/* ==================================================
+   TOKISERVER DRIVE - COMPLETE STYLESHEET (DRIVE.CSS)
+   ================================================== */
+
+:root {
+    --green: #00ff41;
+    --green-glow: rgba(0, 255, 65, 0.4);
+    --magenta-neon: #ff007f;
+    --magenta-glow: rgba(255, 0, 127, 0.45);
+    --dark-bg: #050505;
+    --panel-bg: rgba(0, 15, 5, 0.75);
+    --red-alert: #ff3333;
+    --yellow-warn: #ffcc00;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'VT323', monospace;
+}
+
+body {
+    background-color: var(--dark-bg);
+    color: var(--green);
+    overflow-x: hidden;
+    overflow-y: auto;
+    min-height: 100vh;
+}
+
+/* Utilities de Íconos Pixel Art Vectoriales */
+.pixel-icon-mask {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    background-color: var(--green);
+    -webkit-mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    filter: drop-shadow(0 0 5px var(--green-glow));
+    vertical-align: middle;
+}
+
+.pixel-icon-mask.magenta {
+    background-color: var(--magenta-neon);
+    filter: drop-shadow(0 0 6px var(--magenta-glow));
+}
+
+/* Navbar Global CSS */
+.navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background: rgba(5, 5, 5, 0.75);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 2px solid var(--green);
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding: 10px 0;
+    z-index: 1000;
+    box-shadow: 0 0 15px var(--green-glow);
+}
+
+.navbar a {
+    color: var(--green);
+    text-decoration: none;
+    margin: 5px 15px;
+    font-size: 1.5rem;
+    text-transform: uppercase;
+    padding: 5px 10px;
+    border: 1px solid transparent;
+    transition: all 0.3s ease;
+    opacity: 0.8;
+}
+
+.navbar a:hover, .navbar a.active {
+    border: 1px solid var(--green);
+    background: rgba(0, 255, 65, 0.15);
+    box-shadow: 0 0 10px var(--green-glow);
+    opacity: 1;
+    backdrop-filter: blur(5px);
+}
+
+/* Fondo de partículas ASCII Matrix */
+.particles-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2005;
+    pointer-events: none;
+}
+
+.particle {
+    position: absolute;
+    top: -20px;
+    color: var(--green);
+    font-size: 1rem;
+    user-select: none;
+    opacity: 0.7;
+    animation: fall linear forwards;
+}
+
+@keyframes fall {
+    to {
+        transform: translateY(105vh);
+    }
+}
+
+/* Layout del Contenedor TokiDrive */
+.drive-container {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 100px 5% 60px;
+}
+
+.drive-header {
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.drive-title {
+    font-size: clamp(2.5rem, 6vw, 5rem);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--green);
+    text-shadow: 3px 3px 0px #000, 5px 5px 12px var(--green-glow);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+}
+
+.header-icon {
+    width: 48px;
+    height: 48px;
+    background-color: var(--magenta-neon);
+    -webkit-mask: url('/img/icons/folder.svg') no-repeat center / contain;
+    mask: url('/img/icons/folder.svg') no-repeat center / contain;
+    filter: drop-shadow(0 0 12px var(--magenta-neon));
+}
+
+.terminal-banner {
+    font-size: 1.3rem;
+    background: rgba(0, 0, 0, 0.75);
+    color: var(--green);
+    padding: 15px 20px;
+    border-left: 4px solid var(--green);
+    border-right: 4px solid var(--magenta-neon);
+    max-width: 800px;
+    margin: 0 auto 20px;
+    text-align: left;
+    box-shadow: 0 0 15px rgba(0, 255, 65, 0.15);
+}
+
+.cursor {
+    display: inline-block;
+    width: 10px;
+    height: 20px;
+    background-color: var(--green);
+    animation: blink 0.8s infinite;
+    vertical-align: middle;
+}
+
+@keyframes blink { 50% { opacity: 0; } }
+
+/* Navegación y Botón Volver */
+.nav-back-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 25px;
+}
+
+.btn-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0, 255, 65, 0.1);
+    border: 1px solid var(--green);
+    color: var(--green);
+    padding: 8px 16px;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 1.2rem;
+    transition: all 0.2s ease;
+}
+
+.btn-back:hover {
+    background: var(--green);
+    color: #000;
+    box-shadow: 0 0 15px var(--green);
+}
+
+.section-header {
+    font-size: 1.6rem;
+    text-transform: uppercase;
+    color: var(--green);
+    border-bottom: 2px dashed var(--green);
+    padding-bottom: 8px;
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-shadow: 0 0 8px var(--green-glow);
+}
+
+/* Grilla de Tarjetas */
+.cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.card {
+    background: var(--panel-bg);
+    border: 2px solid var(--green);
+    border-radius: 4px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+    box-shadow: 0 0 12px rgba(0, 255, 65, 0.15);
+    text-decoration: none;
+    color: var(--green);
+    position: relative;
+    overflow: hidden;
+}
+
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: var(--green);
+    box-shadow: 0 0 10px var(--green);
+}
+
+.card.file-card::before {
+    background: var(--magenta-neon);
+    box-shadow: 0 0 10px var(--magenta-neon);
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0 25px rgba(0, 255, 65, 0.35);
+    background: rgba(0, 25, 10, 0.92);
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.card-icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: rgba(255, 0, 127, 0.12);
+    border: 1px solid var(--magenta-neon);
+    border-radius: 4px;
+    box-shadow: 0 0 10px var(--magenta-glow);
+}
+
+.card:hover .card-icon-wrapper {
+    transform: scale(1.1) rotate(-3deg);
+    background: rgba(255, 0, 127, 0.25);
+    box-shadow: 0 0 18px var(--magenta-neon);
+}
+
+.card-route-tag {
+    font-size: 0.9rem;
+    background: rgba(0, 255, 65, 0.15);
+    border: 1px solid var(--green);
+    color: var(--green);
+    padding: 2px 8px;
+    border-radius: 3px;
+}
+
+.card-title {
+    font-size: 1.6rem;
+    margin-bottom: 8px;
+    word-break: break-all;
+    color: var(--green);
+}
+
+.card-desc {
+    font-size: 1rem;
+    opacity: 0.85;
+    margin-bottom: 20px;
+    color: var(--green);
+}
+
+.card-btn {
+    display: inline-block;
+    text-align: center;
+    background: rgba(0, 255, 65, 0.1);
+    border: 1px solid var(--green);
+    color: var(--green);
+    padding: 8px 12px;
+    border-radius: 3px;
+    font-size: 1.1rem;
+    transition: all 0.2s ease;
+}
+
+.card:hover .card-btn {
+    background: var(--green);
+    color: #000;
+    font-weight: bold;
+    box-shadow: 0 0 15px var(--green);
+}
+
+.empty-notice {
+    padding: 40px;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px dashed var(--green);
+    color: var(--green);
+    font-size: 1.4rem;
+}
+
+@media (max-width: 600px) {
+    .drive-container { padding: 90px 5% 40px; }
+    .terminal-banner { font-size: 1rem; }
+    .card-title { font-size: 1.5rem; }
+}
