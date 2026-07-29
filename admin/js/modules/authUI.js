@@ -101,14 +101,6 @@ export function updateLoginAvatar(animate = false) {
     }
 }
 
-export function updateMiniAvatar(username) {
-    const miniAvatar = document.getElementById('current-user-avatar-mini');
-    if (!miniAvatar || !username) return;
-    const info = USER_AVATARS[username.toLowerCase()];
-    if (info) {
-        miniAvatar.src = info.img;
-    }
-}
 
 export function navigateUser(direction) {
     const usernameSelect = document.getElementById('login-username');

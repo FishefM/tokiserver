@@ -17,45 +17,85 @@ export const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
 export const FIXED_USERS = ['Yucef', 'Jesus', 'Hector', 'Inge', 'Kitzya'];
 
 // Mapa seguro de comandos permitidos (Command Whitelist)
+// Atributos opcionales de restricción por usuario:
+// - onlyUsers: Array de nombres de usuarios autorizados únicamente (ej. ['Yucef', 'Jesus'])
+// - allUsersExcept: Array de nombres de usuarios restringidos (ej. ['Kitzya'])
 export const COMMAND_MAP = {
+
+  YUCEF_SITE_UPDATE: {
+    key: 'YUCEF_SITE_UPDATE',
+    label: '> YUCEF_SITE_UPDATE',
+    icon: '💻',
+    cmd: '~/.local/bin/updatesite',
+    onlyUsers: ['Yucef']
+  },
+
   MINECRAFT_TOGGLE: {
-    label: 'MINECRAFT_TOGGLE',
-    dynamic: true
-  },
-  MINECRAFT_START: {
-    label: 'MINECRAFT_START',
-    cmd: `docker start ${MC_CONTAINER}`
-  },
-  MINECRAFT_STOP: {
-    label: 'MINECRAFT_STOP',
-    cmd: `docker stop ${MC_CONTAINER}`
+    key: 'MINECRAFT_TOGGLE',
+    id: 'btn-minecraft',
+    label: '> MINECRAFT SERVER',
+    type: 'dynamic',
+    labelId: 'mc-btn-label',
+    statusId: 'mc-btn-status',
+    defaultStatus: '[CHECKING...]',
+    allUsersExcept: ['Kitzya']
   },
   COREKEEPER_TOGGLE: {
-    label: 'COREKEEPER_TOGGLE',
-    dynamic: true
-  },
-  COREKEEPER_START: {
-    label: 'COREKEEPER_START',
-    cmd: `sudo systemctl start ${CK_SERVICE}`
-  },
-  COREKEEPER_STOP: {
-    label: 'COREKEEPER_STOP',
-    cmd: `sudo systemctl stop ${CK_SERVICE}`
+    key: 'COREKEEPER_TOGGLE',
+    id: 'btn-corekeeper',
+    label: '> CORE KEEPER SERVER',
+    type: 'dynamic',
+    labelId: 'ck-btn-label',
+    statusId: 'ck-btn-status',
+    defaultStatus: '[CHECKING...]',
+    allUsersExcept: ['Kitzya']
   },
   PURGE_CACHE: {
-    label: 'PURGE_CACHE',
+    key: 'PURGE_CACHE',
+    label: '> PURGE_CACHE',
+    icon: '🧹',
     cmd: 'echo "[CACHE] Ejecutando sincronización de buffers (sync)..." && sync && echo "[CACHE] Sincronización completada con éxito."'
   },
   SYS_DIAGNOSTICS: {
-    label: 'SYS_DIAGNOSTICS',
+    key: 'SYS_DIAGNOSTICS',
+    label: '> SYS_DIAGNOSTICS',
+    icon: '🔍',
     cmd: 'echo "=== INFORMACION DEL SISTEMA ===" && uname -sr && uptime && echo "\n=== MEMORIA RAM ===" && free -h && echo "\n=== ALMACENAMIENTO DE DISCO ===" && df -h /'
   },
   VIEW_LOGS: {
-    label: 'HISTORIAL_DE_AUDITORIA_DIARIA',
+    key: 'VIEW_LOGS',
+    label: '> VIEW_LOGS',
+    icon: '📜',
     cmd: `echo "=== HISTORIAL DE AUDITORIA DE COMANDOS ===" && (tail -n 35 "${LOGS_DIR}"/audit-*.log 2>/dev/null || echo "[AUDIT LOG] No se han registrado comandos ejecutados el día de hoy.")`
-  },
-  LOCK_SESSION: {
-    label: 'LOCK_SESSION',
-    cmd: 'echo "[SECURITY] Sesión de administración bloqueada a las $(date +\'%T\')."'
   }
 };
+
+/**
+ * Verifica si un usuario tiene permisos para ejecutar un comando según soloUsuarios / todosLosUsuariosExcepto.
+ * @param {string} username - Nombre del usuario.
+ * @param {object} commandDef - Objeto de comando de COMMAND_MAP.
+ * @returns {boolean}
+ */
+export function isUserAllowed(username, commandDef) {
+  if (!commandDef || !username) return false;
+
+  const userLower = username.toLowerCase();
+
+  // Si onlyUsers está definido y tiene elementos, solo los usuarios especificados pueden ejecutarlo
+  if (Array.isArray(commandDef.onlyUsers) && commandDef.onlyUsers.length > 0) {
+    const allowedList = commandDef.onlyUsers.map(u => u.toLowerCase());
+    if (!allowedList.includes(userLower)) {
+      return false;
+    }
+  }
+
+  // Si allUsersExcept está definido y tiene elementos, los usuarios especificados son excluidos
+  if (Array.isArray(commandDef.allUsersExcept) && commandDef.allUsersExcept.length > 0) {
+    const restrictedList = commandDef.allUsersExcept.map(u => u.toLowerCase());
+    if (restrictedList.includes(userLower)) {
+      return false;
+    }
+  }
+
+  return true;
+}

@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "dev": "node --watch --watch-exclude=logs --watch-exclude=users.json --watch-exclude=sessions.json index.js"
+    "dev": "node --watch --watch-exclude=.data index.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

@@ -138,35 +138,8 @@
         <!-- Botones de Control de Sistema y Docker -->
         <section class="card">
             <h2 class="card-header">> SYSTEM_COMMANDS & DOCKER CONTROLS</h2>
-            <div class="controls-grid">
-                <!-- Botón dinámico de Minecraft Server (mc_forge_server) -->
-                <button type="button" class="btn-cmd" id="btn-minecraft" onclick="executeCommand('MINECRAFT_TOGGLE', event)">
-                    <span id="mc-btn-label">> MINECRAFT SERVER</span>
-                    <span id="mc-btn-status" style="font-size: 1.1rem;">[CHECKING...]</span>
-                </button>
-
-                <!-- Botón dinámico de Core Keeper Server (corekeeper-server.service) -->
-                <button type="button" class="btn-cmd" id="btn-corekeeper" onclick="executeCommand('COREKEEPER_TOGGLE', event)">
-                    <span id="ck-btn-label">> CORE KEEPER SERVER</span>
-                    <span id="ck-btn-status" style="font-size: 1.1rem;">[CHECKING...]</span>
-                </button>
-
-                <button type="button" class="btn-cmd" onclick="executeCommand('PURGE_CACHE', event)">
-                    <span>> PURGE_CACHE</span>
-                    <span>🧹</span>
-                </button>
-                <button type="button" class="btn-cmd" onclick="executeCommand('SYS_DIAGNOSTICS', event)">
-                    <span>> SYS_DIAGNOSTICS</span>
-                    <span>🔍</span>
-                </button>
-                <button type="button" class="btn-cmd" onclick="executeCommand('VIEW_LOGS', event)">
-                    <span>> VIEW_LOGS</span>
-                    <span>📜</span>
-                </button>
-                <button type="button" class="btn-cmd danger" onclick="openEasterEggModal(event)">
-                    <span>> Descargar .env</span>
-                    <span>🔒</span>
-                </button>
+            <div class="controls-grid" id="controls-grid">
+                <!-- Se generará dinámicamente mediante JavaScript -->
             </div>
         </section>
 

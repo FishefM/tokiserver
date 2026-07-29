@@ -10,54 +10,48 @@ export const getBackendUrl = () => {
     return '';
 };
 
-// Actualizar la interfaz de usuario para el estado de Minecraft
-export function updateMinecraftUI(mcInfo) {
-    const labelEl = document.getElementById('mc-btn-label');
-    const statusEl = document.getElementById('mc-btn-status');
-    if (!mcInfo || !labelEl || !statusEl) return;
+// Actualizar la etiqueta (Start/Stop) e indicador de estado (ONLINE/OFFLINE/NOT CREATED) de servicios dinámicos
+export function updateIconLabel(serviceType, info) {
+    let labelEl, statusEl, serviceName;
 
-    if (!mcInfo.exists) {
-        labelEl.innerText = '> START MINECRAFT';
-        statusEl.innerText = '[NOT CREATED ⚠️]';
-        statusEl.style.color = 'var(--yellow-warn)';
-    } else if (mcInfo.running) {
-        labelEl.innerText = '> STOP MINECRAFT';
-        statusEl.innerText = '[ONLINE 🟢]';
-        statusEl.style.color = 'var(--green)';
+    if (serviceType === 'minecraft') {
+        labelEl = document.getElementById('mc-btn-label');
+        statusEl = document.getElementById('mc-btn-status');
+        serviceName = 'MINECRAFT';
+    } else if (serviceType === 'corekeeper') {
+        labelEl = document.getElementById('ck-btn-label');
+        statusEl = document.getElementById('ck-btn-status');
+        serviceName = 'CORE KEEPER';
     } else {
-        labelEl.innerText = '> START MINECRAFT';
-        statusEl.innerText = '[OFFLINE 🔴]';
-        statusEl.style.color = 'var(--red-alert)';
+        return;
     }
-}
 
-// Actualizar la interfaz de usuario para el estado de Core Keeper
-export function updateCorekeeperUI(ckInfo) {
-    const labelEl = document.getElementById('ck-btn-label');
-    const statusEl = document.getElementById('ck-btn-status');
     if (!labelEl || !statusEl) return;
 
-    if (!ckInfo) {
-        labelEl.innerText = '> START CORE KEEPER';
+    if (!info) {
+        labelEl.innerText = `> START ${serviceName}`;
         statusEl.innerText = '[RESTART BACKEND ⚠️]';
         statusEl.style.color = 'var(--yellow-warn)';
         return;
     }
 
-    if (!ckInfo.exists) {
-        labelEl.innerText = '> START CORE KEEPER';
+    if (!info.exists) {
+        labelEl.innerText = `> START ${serviceName}`;
         statusEl.innerText = '[NOT CREATED ⚠️]';
         statusEl.style.color = 'var(--yellow-warn)';
-    } else if (ckInfo.running) {
-        labelEl.innerText = '> STOP CORE KEEPER';
+    } else if (info.running) {
+        labelEl.innerText = `> STOP ${serviceName}`;
         statusEl.innerText = '[ONLINE 🟢]';
         statusEl.style.color = 'var(--green)';
     } else {
-        labelEl.innerText = '> START CORE KEEPER';
+        labelEl.innerText = `> START ${serviceName}`;
         statusEl.innerText = '[OFFLINE 🔴]';
         statusEl.style.color = 'var(--red-alert)';
     }
 }
+
+export const updateMinecraftUI = (mcInfo) => updateIconLabel('minecraft', mcInfo);
+export const updateCorekeeperUI = (ckInfo) => updateIconLabel('corekeeper', ckInfo);
 
 // Verificación de estado del backend y servicios en tiempo real
 export async function checkBackendHealth() {
@@ -71,8 +65,8 @@ export async function checkBackendHealth() {
             const data = await res.json();
             badge.classList.remove('offline');
             statusText.innerText = `BACKEND: ONLINE | IP: ${data.clientIp}`;
-            updateMinecraftUI(data.minecraft);
-            updateCorekeeperUI(data.corekeeper);
+            updateIconLabel('minecraft', data.minecraft);
+            updateIconLabel('corekeeper', data.corekeeper);
         } else {
             throw new Error('HTTP Error');
         }
@@ -123,10 +117,10 @@ export async function executeCommand(cmdName, e, logoutCallback) {
         }
 
         if (data.minecraft) {
-            updateMinecraftUI(data.minecraft);
+            updateIconLabel('minecraft', data.minecraft);
         }
         if (data.corekeeper) {
-            updateCorekeeperUI(data.corekeeper);
+            updateIconLabel('corekeeper', data.corekeeper);
         }
 
         if (res.ok && data.success) {
@@ -158,3 +152,70 @@ export async function executeCommand(cmdName, e, logoutCallback) {
         }
     }
 }
+
+// Renderizar componentes de botones de control suministrados por la API del servidor
+export function renderControlButtons(containerId = 'controls-grid', allowedCommands = []) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (Array.isArray(allowedCommands)) {
+        allowedCommands.forEach(config => {
+            if (!config || typeof config !== 'object' || !config.label) return;
+
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn-cmd';
+            if (config.id) btn.id = config.id;
+
+            if (config.type === 'dynamic') {
+                const spanLabel = document.createElement('span');
+                spanLabel.id = config.labelId;
+                spanLabel.textContent = config.label;
+
+                const spanStatus = document.createElement('span');
+                spanStatus.id = config.statusId;
+                spanStatus.style.fontSize = '1.1rem';
+                spanStatus.textContent = config.defaultStatus || '[CHECKING...]';
+
+                btn.appendChild(spanLabel);
+                btn.appendChild(spanStatus);
+            } else {
+                const spanLabel = document.createElement('span');
+                spanLabel.textContent = config.label;
+
+                const spanIcon = document.createElement('span');
+                spanIcon.textContent = config.icon || '';
+
+                btn.appendChild(spanLabel);
+                btn.appendChild(spanIcon);
+            }
+
+            btn.addEventListener('click', (e) => executeCommand(config.key, e, window.logout));
+            container.appendChild(btn);
+        });
+    }
+
+    // Acción local del frontend: Botón de Easter Egg (.env)
+    const envBtn = document.createElement('button');
+    envBtn.type = 'button';
+    envBtn.className = 'btn-cmd danger';
+    
+    const envLabel = document.createElement('span');
+    envLabel.textContent = '> Descargar .env';
+
+    const envIcon = document.createElement('span');
+    envIcon.textContent = '🔒';
+
+    envBtn.appendChild(envLabel);
+    envBtn.appendChild(envIcon);
+    envBtn.addEventListener('click', (e) => {
+        if (typeof window.openEasterEggModal === 'function') {
+            window.openEasterEggModal(e);
+        }
+    });
+
+    container.appendChild(envBtn);
+}
+

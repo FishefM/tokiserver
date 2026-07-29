@@ -1,5 +1,5 @@
 import express from 'express';
-import { COMMAND_MAP, MC_CONTAINER, CK_SERVICE } from '../config/constants.js';
+import { COMMAND_MAP, MC_CONTAINER, CK_SERVICE, isUserAllowed } from '../config/constants.js';
 import { getClientIp, requireAuth } from '../middleware/authMiddleware.js';
 import { logAudit } from '../services/auditService.js';
 import { getMinecraftStatus, getCorekeeperStatus, execPromise } from '../services/systemService.js';
@@ -30,22 +30,19 @@ router.post('/', requireAuth, async (req, res) => {
     });
   }
 
-  // Restricción de permisos por rol: Kitzya no tiene permiso para administrar Minecraft ni Core Keeper
-  const gameServerCommands = [
-    'MINECRAFT_TOGGLE', 'MINECRAFT_START', 'MINECRAFT_STOP',
-    'COREKEEPER_TOGGLE', 'COREKEEPER_START', 'COREKEEPER_STOP'
-  ];
+  const target = COMMAND_MAP[command];
 
-  if (currentUser && currentUser.toLowerCase() === 'kitzya' && gameServerCommands.includes(command)) {
+  // Restricción de permisos dinámica según atributos onlyUsers y allUsersExcept
+  if (!isUserAllowed(currentUser, target)) {
     console.warn(`[AUDIT ALERTA] Permiso denegado: El usuario ${currentUser} (IP ${clientIp}) intentó ejecutar ${command}`);
     console.log(`--------------------------------------------------\n`);
-    logAudit(clientIp, command, false, 'Acceso denegado: usuario sin permisos para servidores de juego', currentUser);
+    logAudit(clientIp, command, false, `Acceso denegado: usuario sin permisos para ejecutar ${command}`, currentUser);
 
     return res.status(403).json({
       success: false,
       clientIp,
       user: currentUser,
-      error: `Acceso denegado: El usuario ${currentUser} no tiene permisos para gestionar los servidores de juego.`,
+      error: `Acceso denegado: El usuario ${currentUser} no tiene permisos para ejecutar este comando.`,
       timestamp
     });
   }
@@ -149,8 +146,6 @@ router.post('/', requireAuth, async (req, res) => {
       });
     }
   }
-
-  const target = COMMAND_MAP[command];
 
   try {
     const { stdout, stderr } = await execPromise(target.cmd, { timeout: 15000 });

@@ -4,7 +4,6 @@ import {
     setSession,
     clearSession,
     updateLoginAvatar,
-    updateMiniAvatar,
     navigateUser,
     togglePasswordVisibility,
     openPasswordModal,
@@ -14,7 +13,7 @@ import {
 } from './modules/authUI.js';
 
 import { appendTerminalLine } from './modules/consoleUI.js';
-import { getBackendUrl, checkBackendHealth, executeCommand } from './modules/commandUI.js';
+import { getBackendUrl, checkBackendHealth, executeCommand, renderControlButtons } from './modules/commandUI.js';
 
 let healthCheckInterval = null;
 
@@ -32,18 +31,9 @@ window.handleLogin = handleLogin;
 window.handleChangePassword = handleChangePassword;
 window.executeCommand = (cmdName, e) => executeCommand(cmdName, e, logout);
 
-// Aplicar restricciones de permisos según el usuario
-export function applyUserPermissions(username) {
-    const btnMc = document.getElementById('btn-minecraft');
-    const btnCk = document.getElementById('btn-corekeeper');
-    const isRestricted = username && username.toLowerCase() === 'kitzya';
-
-    if (btnMc) {
-        btnMc.style.display = isRestricted ? 'none' : 'flex';
-    }
-    if (btnCk) {
-        btnCk.style.display = isRestricted ? 'none' : 'flex';
-    }
+// Aplicar restricciones de permisos según comandos permitidos devueltos por el backend
+export function applyUserPermissions(username, allowedCommands = []) {
+    renderControlButtons('controls-grid', allowedCommands);
 }
 
 // Verificar autenticación actual del usuario
@@ -69,7 +59,6 @@ export async function checkAuthStatus() {
     if (mainPanel) mainPanel.style.display = 'flex';
     if (getUser()) {
         if (currentUserDisplay) currentUserDisplay.textContent = getUser();
-        updateMiniAvatar(getUser());
         applyUserPermissions(getUser());
     }
 
@@ -81,8 +70,7 @@ export async function checkAuthStatus() {
         if (res.ok) {
             const data = await res.json();
             if (currentUserDisplay) currentUserDisplay.textContent = data.username;
-            updateMiniAvatar(data.username);
-            applyUserPermissions(data.username);
+            applyUserPermissions(data.username, data.allowedCommands);
 
             checkBackendHealth();
             if (!healthCheckInterval) {
@@ -101,7 +89,6 @@ export async function checkAuthStatus() {
     } catch (err) {
         if (getUser()) {
             if (currentUserDisplay) currentUserDisplay.textContent = getUser();
-            updateMiniAvatar(getUser());
             applyUserPermissions(getUser());
         }
         return false;
@@ -229,5 +216,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof window.initParticles === 'function') {
         window.initParticles();
     }
+    renderControlButtons('controls-grid');
     checkAuthStatus();
 });

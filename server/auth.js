@@ -224,12 +224,4 @@ export function changePassword(username, currentPassword, newPassword) {
   return { success: true, message: 'Contraseña actualizada con éxito' };
 }
 
-export function getInitialCredentialsIfExist() {
-  const credPath = path.join(LOGS_DIR, 'INITIAL_CREDENTIALS.txt');
-  if (fs.existsSync(credPath)) {
-    return fs.readFileSync(credPath, 'utf8');
-  }
-  return null;
-}
-
 loadUsers();
