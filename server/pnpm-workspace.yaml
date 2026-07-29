@@ -1,0 +1,3 @@
+allowBuilds:
+  '@journeyapps/sqlcipher': true
+  better-sqlite3-multiple-ciphers: true

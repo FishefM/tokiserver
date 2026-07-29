@@ -1,11 +1,16 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { PORT, LOGS_DIR } from './config/constants.js';
 import { getClientIp } from './middleware/authMiddleware.js';
+import { getDb } from './db.js';
 
 import authRoutes from './routes/authRoutes.js';
 import commandRoutes from './routes/commandRoutes.js';
 import statusRoutes from './routes/statusRoutes.js';
+
+// Inicializar la base de datos SQLite cifrada al arrancar
+getDb();
 
 const app = express();
 

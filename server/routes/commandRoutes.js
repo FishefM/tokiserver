@@ -1,8 +1,9 @@
 import express from 'express';
-import { COMMAND_MAP, MC_CONTAINER, CK_SERVICE, isUserAllowed } from '../config/constants.js';
+import { MC_CONTAINER, CK_SERVICE, isUserAllowed } from '../config/constants.js';
 import { getClientIp, requireAuth } from '../middleware/authMiddleware.js';
 import { logAudit } from '../services/auditService.js';
 import { getMinecraftStatus, getCorekeeperStatus, execPromise } from '../services/systemService.js';
+import { getCommandMap, formatAuditLogsForTerminal } from '../db.js';
 
 const router = express.Router();
 
@@ -12,12 +13,13 @@ router.post('/', requireAuth, async (req, res) => {
   const { command } = req.body;
   const timestamp = new Date().toLocaleTimeString();
   const currentUser = req.user;
+  const commandMap = getCommandMap();
 
   console.log(`\n--------------------------------------------------`);
   console.log(`[AUDIT LOG] Hora: ${timestamp} | IP Solicitante: ${clientIp} | Usuario: ${currentUser}`);
   console.log(`[AUDIT LOG] Comando Solicitado: "${command}"`);
 
-  if (!command || !COMMAND_MAP[command]) {
+  if (!command || !commandMap[command]) {
     console.warn(`[AUDIT ALERTA] Usuario ${currentUser} (IP ${clientIp}) intentó ejecutar comando no permitido: "${command}"`);
     console.log(`--------------------------------------------------\n`);
     logAudit(clientIp, command || 'DESCONOCIDO', false, 'Comando no permitido', currentUser);
@@ -30,7 +32,7 @@ router.post('/', requireAuth, async (req, res) => {
     });
   }
 
-  const target = COMMAND_MAP[command];
+  const target = commandMap[command];
 
   // Restricción de permisos dinámica según atributos onlyUsers y allUsersExcept
   if (!isUserAllowed(currentUser, target)) {
@@ -144,7 +146,28 @@ router.post('/', requireAuth, async (req, res) => {
         stderr: err.stderr ? err.stderr.trim() : '',
         timestamp
       });
-    }
+  // VIEW_LOGS desde SQLite DB
+  if (command === 'VIEW_LOGS') {
+    const mcStatus = await getMinecraftStatus();
+    const ckStatus = await getCorekeeperStatus();
+    const logsOutput = formatAuditLogsForTerminal(35);
+
+    console.log(`[AUDIT SQLITE LOGS] Consulta de logs de auditoría realizada por: ${currentUser} (IP: ${clientIp})`);
+    console.log(`--------------------------------------------------\n`);
+    logAudit(clientIp, command, true, target.label, currentUser);
+
+    return res.json({
+      success: true,
+      command,
+      label: target.label,
+      clientIp,
+      user: currentUser,
+      minecraft: mcStatus,
+      corekeeper: ckStatus,
+      stdout: logsOutput,
+      stderr: '',
+      timestamp
+    });
   }
 
   try {

@@ -2,7 +2,8 @@ import express from 'express';
 import { loginUser, logoutUser, changePassword } from '../auth.js';
 import { getClientIp, requireAuth } from '../middleware/authMiddleware.js';
 import { logAudit } from '../services/auditService.js';
-import { COMMAND_MAP, isUserAllowed } from '../config/constants.js';
+import { isUserAllowed } from '../config/constants.js';
+import { getCommandMap } from '../db.js';
 
 const router = express.Router();
 
@@ -33,7 +34,8 @@ router.post('/logout', requireAuth, (req, res) => {
 
 // GET /api/me
 router.get('/me', requireAuth, (req, res) => {
-  const allowedCommands = Object.values(COMMAND_MAP)
+  const commandMap = getCommandMap();
+  const allowedCommands = Object.values(commandMap)
     .filter(cmdObj => isUserAllowed(req.user, cmdObj))
     .map(({ cmd, ...publicData }) => publicData);
 

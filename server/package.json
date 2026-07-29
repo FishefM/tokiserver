@@ -9,7 +9,10 @@
     "dev": "node --watch --watch-exclude=.data index.js"
   },
   "dependencies": {
+    "@journeyapps/sqlcipher": "^6.0.0",
+    "better-sqlite3-multiple-ciphers": "^12.11.1",
     "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
     "express": "^4.21.0"
   }
 }

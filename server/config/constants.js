@@ -16,12 +16,8 @@ export const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
 // Lista fija de operadores permitidos
 export const FIXED_USERS = ['Yucef', 'Jesus', 'Hector', 'Inge', 'Kitzya'];
 
-// Mapa seguro de comandos permitidos (Command Whitelist)
-// Atributos opcionales de restricción por usuario:
-// - onlyUsers: Array de nombres de usuarios autorizados únicamente (ej. ['Yucef', 'Jesus'])
-// - allUsersExcept: Array de nombres de usuarios restringidos (ej. ['Kitzya'])
-export const COMMAND_MAP = {
-
+// Mapa seguro por defecto para inicializar la base de datos SQLite
+export const DEFAULT_COMMANDS = {
   YUCEF_SITE_UPDATE: {
     key: 'YUCEF_SITE_UPDATE',
     label: '> YUCEF_SITE_UPDATE',
@@ -69,6 +65,7 @@ export const COMMAND_MAP = {
     cmd: `echo "=== HISTORIAL DE AUDITORIA DE COMANDOS ===" && (tail -n 35 "${LOGS_DIR}"/audit-*.log 2>/dev/null || echo "[AUDIT LOG] No se han registrado comandos ejecutados el día de hoy.")`
   }
 };
+
 
 /**
  * Verifica si un usuario tiene permisos para ejecutar un comando según soloUsuarios / todosLosUsuariosExcepto.
