@@ -2,27 +2,51 @@
   "subdomains": [
     {
       "name": "Admin",
-      "url": "/admin"
-    },
-    {
-      "name": "Minecraft",
-      "url": "/minecraft"
+      "url": "/admin",
+      "category": "services",
+      "description": "Panel de administración y control del servidor",
+      "icon": "sliders"
     },
     {
       "name": "Jellyfin",
-      "url": ":8096"
+      "url": ":8096",
+      "category": "services",
+      "description": "Servidor de streaming multimedia",
+      "icon": "movie"
     },
     {
       "name": "Kavita",
-      "url": ":5000"
+      "url": ":5000",
+      "category": "services",
+      "description": "Biblioteca de cómics, manga y libros",
+      "icon": "book-open"
+    },
+    {
+      "name": "Drive",
+      "url": "/drive",
+      "category": "drive",
+      "description": "Almacenamiento y servidor de descargas",
+      "icon": "folder"
+    }
+  ],
+  "driveFolders": [
+    {
+      "name": "Minecraft",
+      "url": "/drive/minecraft/",
+      "description": "Archivos, mods y mapas de Minecraft",
+      "icon": "gamepad"
     },
     {
       "name": "GTA SA",
-      "url": "/gta-sa"
+      "url": "/drive/gta-sa/",
+      "description": "Juegos y archivos de GTA San Andreas",
+      "icon": "car"
     },
     {
       "name": "pvz Fusion",
-      "url": "/pvz"
+      "url": "/drive/pvz/",
+      "description": "Mods y descargas de PvZ Fusion",
+      "icon": "zap"
     }
   ]
 }

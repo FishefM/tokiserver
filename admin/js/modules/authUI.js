@@ -121,11 +121,11 @@ export function togglePasswordVisibility(inputId, btn) {
 
     if (input.type === 'password') {
         input.type = 'text';
-        btn.textContent = '🙈';
+        btn.innerHTML = `<span class="pixel-icon-mask magenta" style="-webkit-mask-image: url('/img/icons/eye.svg'); mask-image: url('/img/icons/eye.svg'); opacity: 0.4;"></span>`;
         btn.title = 'Ocultar contraseña';
     } else {
         input.type = 'password';
-        btn.textContent = '👁️';
+        btn.innerHTML = `<span class="pixel-icon-mask magenta" style="-webkit-mask-image: url('/img/icons/eye.svg'); mask-image: url('/img/icons/eye.svg');"></span>`;
         btn.title = 'Mostrar contraseña';
     }
 }

@@ -146,6 +146,9 @@ router.post('/', requireAuth, async (req, res) => {
         stderr: err.stderr ? err.stderr.trim() : '',
         timestamp
       });
+    }
+  }
+
   // VIEW_LOGS desde SQLite DB
   if (command === 'VIEW_LOGS') {
     const mcStatus = await getMinecraftStatus();

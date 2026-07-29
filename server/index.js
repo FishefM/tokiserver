@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import { PORT, LOGS_DIR } from './config/constants.js';
+import { PORT } from './config/constants.js';
 import { getClientIp } from './middleware/authMiddleware.js';
 import { getDb } from './db.js';
 
@@ -43,6 +43,6 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n==================================================`);
   console.log(`[TOKISERVER BACKEND ONLINE] Escuchando en el puerto ${PORT}`);
   console.log(`Disponible en entorno LAN: http://0.0.0.0:${PORT}`);
-  console.log(`Directorio de logs diarios activado en: ${LOGS_DIR}`);
+  console.log(`Base de datos cifrada activa (SQLCipher 4)`);
   console.log(`==================================================\n`);
 });

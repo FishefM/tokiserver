@@ -186,7 +186,23 @@ export function renderControlButtons(containerId = 'controls-grid', allowedComma
                 spanLabel.textContent = config.label;
 
                 const spanIcon = document.createElement('span');
-                spanIcon.textContent = config.icon || '';
+                const iconMap = {
+                    '💻': 'device-laptop',
+                    '🧹': 'trash',
+                    '🔍': 'search',
+                    '📜': 'notes',
+                    '🔒': 'lock',
+                    '🔑': 'lock',
+                    '👤': 'user',
+                    '🚪': 'logout'
+                };
+
+                const iconName = iconMap[config.icon] || config.icon;
+
+                if (iconName) {
+                    spanIcon.className = 'pixel-icon-mask magenta';
+                    spanIcon.style.cssText = `-webkit-mask-image: url('/img/icons/${iconName}.svg'); mask-image: url('/img/icons/${iconName}.svg'); width: 20px; height: 20px;`;
+                }
 
                 btn.appendChild(spanLabel);
                 btn.appendChild(spanIcon);
@@ -206,7 +222,8 @@ export function renderControlButtons(containerId = 'controls-grid', allowedComma
     envLabel.textContent = '> Descargar .env';
 
     const envIcon = document.createElement('span');
-    envIcon.textContent = '🔒';
+    envIcon.className = 'pixel-icon-mask magenta';
+    envIcon.style.cssText = `-webkit-mask-image: url('/img/icons/lock.svg'); mask-image: url('/img/icons/lock.svg'); width: 20px; height: 20px;`;
 
     envBtn.appendChild(envLabel);
     envBtn.appendChild(envIcon);

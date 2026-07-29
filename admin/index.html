@@ -99,7 +99,9 @@
                         <label for="login-password">> SECRETO:</label>
                         <div class="password-input-wrapper">
                             <input type="password" id="login-password" class="crt-input" placeholder="Si bro, aqui va la contraseña" required autocomplete="current-password">
-                            <button type="button" class="btn-toggle-pwd" onclick="togglePasswordVisibility('login-password', this)" title="Mostrar/Ocultar contraseña">👁️</button>
+                            <button type="button" class="btn-toggle-pwd" onclick="togglePasswordVisibility('login-password', this)" title="Mostrar/Ocultar contraseña">
+                                <span class="pixel-icon-mask magenta" style="-webkit-mask-image: url('/img/icons/eye.svg'); mask-image: url('/img/icons/eye.svg');"></span>
+                            </button>
                         </div>
                     </div>
 
@@ -107,7 +109,7 @@
 
                     <button type="submit" class="btn-cmd btn-login">
                         <span>> INICIAR SESIÓN</span>
-                        <span>🔑</span>
+                        <span class="pixel-icon-mask magenta" style="-webkit-mask-image: url('/img/icons/lock.svg'); mask-image: url('/img/icons/lock.svg'); width: 22px; height: 22px;"></span>
                     </button>
                 </form>
             </div>
@@ -128,9 +130,9 @@
                     <span id="backend-status-text">CONNECTING BACKEND...</span>
                 </div>
                 <div class="session-info">
-                    <span>👤 <strong id="current-user-display" style="color: var(--green);">---</strong></span>
-                    <button type="button" class="btn-action" onclick="openPasswordModal()">🔑 CAMBIAR CONTRASEÑA</button>
-                    <button type="button" class="btn-action danger" onclick="logout()">🚪 CERRAR SESIÓN</button>
+                    <span><span class="pixel-icon-mask magenta" style="-webkit-mask-image: url('/img/icons/user.svg'); mask-image: url('/img/icons/user.svg'); width: 20px; height: 20px; margin-right: 4px; vertical-align: text-bottom;"></span> <strong id="current-user-display" style="color: var(--green);">---</strong></span>
+                    <button type="button" class="btn-action" onclick="openPasswordModal()"><span class="pixel-icon-mask magenta" style="-webkit-mask-image: url('/img/icons/lock.svg'); mask-image: url('/img/icons/lock.svg'); width: 18px; height: 18px; margin-right: 4px; vertical-align: text-bottom;"></span> CAMBIAR CONTRASEÑA</button>
+                    <button type="button" class="btn-action danger" onclick="logout()"><span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/logout.svg'); mask-image: url('/img/icons/logout.svg'); width: 18px; height: 18px; margin-right: 4px; background-color: var(--red-alert); vertical-align: text-bottom;"></span> CERRAR SESIÓN</button>
                 </div>
             </div>
         </header>
@@ -163,7 +165,9 @@
                     <label for="pwd-current">> CONTRASEÑA ACTUAL:</label>
                     <div class="password-input-wrapper">
                         <input type="password" id="pwd-current" class="crt-input" required autocomplete="current-password">
-                        <button type="button" class="btn-toggle-pwd" onclick="togglePasswordVisibility('pwd-current', this)" title="Mostrar/Ocultar contraseña">👁️</button>
+                        <button type="button" class="btn-toggle-pwd" onclick="togglePasswordVisibility('pwd-current', this)" title="Mostrar/Ocultar contraseña">
+                            <span class="pixel-icon-mask magenta" style="-webkit-mask-image: url('/img/icons/eye.svg'); mask-image: url('/img/icons/eye.svg');"></span>
+                        </button>
                     </div>
                 </div>
 
@@ -171,7 +175,9 @@
                     <label for="pwd-new">> NUEVA CONTRASEÑA:</label>
                     <div class="password-input-wrapper">
                         <input type="password" id="pwd-new" class="crt-input" placeholder="Mínimo 4 caracteres" required autocomplete="new-password">
-                        <button type="button" class="btn-toggle-pwd" onclick="togglePasswordVisibility('pwd-new', this)" title="Mostrar/Ocultar contraseña">👁️</button>
+                        <button type="button" class="btn-toggle-pwd" onclick="togglePasswordVisibility('pwd-new', this)" title="Mostrar/Ocultar contraseña">
+                            <span class="pixel-icon-mask magenta" style="-webkit-mask-image: url('/img/icons/eye.svg'); mask-image: url('/img/icons/eye.svg');"></span>
+                        </button>
                     </div>
                 </div>
 
@@ -179,7 +185,9 @@
                     <label for="pwd-confirm">> CONFIRMAR NUEVA CONTRASEÑA:</label>
                     <div class="password-input-wrapper">
                         <input type="password" id="pwd-confirm" class="crt-input" required autocomplete="new-password">
-                        <button type="button" class="btn-toggle-pwd" onclick="togglePasswordVisibility('pwd-confirm', this)" title="Mostrar/Ocultar contraseña">👁️</button>
+                        <button type="button" class="btn-toggle-pwd" onclick="togglePasswordVisibility('pwd-confirm', this)" title="Mostrar/Ocultar contraseña">
+                            <span class="pixel-icon-mask magenta" style="-webkit-mask-image: url('/img/icons/eye.svg'); mask-image: url('/img/icons/eye.svg');"></span>
+                        </button>
                     </div>
                 </div>
 
@@ -201,7 +209,7 @@
     <div class="auth-overlay modal-overlay" id="easteregg-modal" style="display: none;" onclick="closeEasterEggModal(event)">
         <div class="login-card modal-card easteregg-card" onclick="event.stopPropagation()">
             <div class="easteregg-header">
-                <h2 class="login-title" style="color: var(--red-alert); text-shadow: 0 0 8px rgba(255, 51, 51, 0.5);">> SECRET_.ENV_EXPOSED 🔒</h2>
+                <h2 class="login-title" style="color: var(--red-alert); text-shadow: 0 0 8px rgba(255, 51, 51, 0.5); display: flex; align-items: center; justify-content: center; gap: 8px;">> SECRET_.ENV_EXPOSED <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/lock.svg'); mask-image: url('/img/icons/lock.svg'); background-color: var(--red-alert); width: 22px; height: 22px;"></span></h2>
                 <button type="button" class="btn-close-modal" onclick="closeEasterEggModal(event)" title="Cerrar">✖</button>
             </div>
             <p class="login-subtitle">CONFIDENTIAL ENVIRONMENT CONFIGURATION FILE</p>

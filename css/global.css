@@ -1,10 +1,33 @@
 :root {
     --green: #00ff41;
     --green-glow: rgba(0, 255, 65, 0.4);
+    --magenta-neon: #ff007f;
+    --magenta-glow: rgba(255, 0, 127, 0.45);
     --dark-bg: #050505;
     --panel-bg: rgba(0, 15, 5, 0.75);
     --red-alert: #ff3333;
     --yellow-warn: #ffcc00;
+}
+
+/* Utilities de Íconos Pixel Art Vectoriales */
+.pixel-icon-mask {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    background-color: var(--green);
+    -webkit-mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    filter: drop-shadow(0 0 5px var(--green-glow));
+    vertical-align: middle;
+}
+
+.pixel-icon-mask.magenta {
+    background-color: var(--magenta-neon);
+    filter: drop-shadow(0 0 6px var(--magenta-glow));
 }
 
 * {

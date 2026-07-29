@@ -1,1 +1,117 @@
-index.nginx-debian.html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOKISERVER</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/global.css">
+    <style>
+        .hero-section {
+            position: relative;
+            z-index: 10;
+            min-height: 100vh;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 80px 8% 20px;
+        }
+
+        .content-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: left; 
+            max-width: 900px;
+        }
+
+        .meme-img {
+            width: 180px;
+            height: 180px;
+            border-radius: 5%;
+            object-position: 0% 0%;
+            object-fit: cover;
+            border: 4px solid var(--green);
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
+            margin-bottom: 1.5rem;
+            filter: hue-rotate(100deg) contrast(120%);
+            transition: transform 0.3s ease;
+        }
+
+        .meme-img:hover {
+            transform: scale(1.1);
+            filter: none;
+        }
+
+        .title {
+            font-size: clamp(3.5rem, 12vw, 9rem);
+            line-height: 0.9;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+            text-shadow: 3px 3px 0px #000, 6px 6px 0px rgba(0, 255, 65, 0.2);
+        }
+
+        .terminal-log {
+            font-size: 1.4rem;
+            line-height: 1.4;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-left: 3px solid var(--green);
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 12px;
+            height: 24px;
+            background-color: var(--green);
+            animation: blink 0.8s infinite;
+            vertical-align: middle;
+        }
+
+        @keyframes blink { 50% { opacity: 0; } }
+
+        @media (max-width: 600px) {
+            .hero-section { padding: 100px 5% 40px; }
+            .meme-img { width: 120px; height: 120px; }
+            .terminal-log { font-size: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navegación Dinámica Global -->
+    <nav class="navbar" id="dynamic-navbar">
+        <a href="/" class="active">HOME</a>
+    </nav>
+
+    <!-- Partículas ASCII Globales -->
+    <div class="particles-container" id="particles"></div>
+
+    <section class="hero-section">
+        <div class="content-wrapper">
+            <img src="toki.jpeg" alt="Toki" class="meme-img">
+            
+            <h1 class="title">TOKISERVER</h1>
+            
+            <div class="terminal-log">
+                <p>> TOKI_HOST_SERVICE_STATUS ... ENABLED</p>
+                <p>> MODE: CHINGAR_LA_MADRE</p>
+                <p>> TODO: TAKE_CARE_OF_ALL_MONKEYS </p>
+                <p>> UPTIME_MINECRAFT: 13 DAYS, 69 HOURS</p>
+                <p>> PING ADMIN'S_BRAIN ... REQUEST TIME OUT<span class="cursor"></span></p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Scripts Modulares Globales -->
+    <script src="js/navbar.js"></script>
+    <script src="js/particles.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            loadNavbar('/');
+            initParticles();
+        });
+    </script>
+</body>
+</html>
