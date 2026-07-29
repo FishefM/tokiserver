@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { PORT } from './config/constants.js';
 import { getClientIp } from './middleware/authMiddleware.js';
 import { getDb } from './db.js';
@@ -8,6 +10,10 @@ import { getDb } from './db.js';
 import authRoutes from './routes/authRoutes.js';
 import commandRoutes from './routes/commandRoutes.js';
 import statusRoutes from './routes/statusRoutes.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const htmlRoot = path.join(__dirname, '..');
 
 // Inicializar la base de datos SQLite cifrada al arrancar
 getDb();
@@ -31,12 +37,11 @@ app.use((req, res, next) => {
 
 // Enrutadores API (Soporta proxy Nginx con o sin recorte de prefijo /api)
 app.use('/api', authRoutes);
-app.use('/', authRoutes);
-
 app.use('/api/command', commandRoutes);
-app.use('/command', commandRoutes);
-
 app.use('/api/status', statusRoutes);
+
+app.use('/', authRoutes);
+app.use('/command', commandRoutes);
 app.use('/status', statusRoutes);
 
 app.listen(PORT, '0.0.0.0', () => {

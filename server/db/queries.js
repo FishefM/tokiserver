@@ -116,7 +116,7 @@ export function getUser(usernameInput) {
   return cachedUsers.get(key) || null;
 }
 
-export function saveUserPassword(usernameInput, salt, hash) {
+export function saveUserPassword(usernameInput, salt, hash, callback) {
   const db = getDbConnection();
   const now = new Date().toISOString();
   const lowerName = usernameInput.trim().toLowerCase();
@@ -126,12 +126,18 @@ export function saveUserPassword(usernameInput, salt, hash) {
     const updatedUser = { ...existing, salt, hash, updatedAt: now };
     cachedUsers.set(lowerName, updatedUser);
     db.run('UPDATE users SET salt = ?, hash = ?, updatedAt = ? WHERE LOWER(username) = ?',
-      [salt, hash, now, lowerName], () => reloadCache());
+      [salt, hash, now, lowerName], (err) => {
+        reloadCache();
+        if (callback) callback(err);
+      });
   } else {
     const newUser = { username: usernameInput.trim(), salt, hash, createdAt: now };
     cachedUsers.set(lowerName, newUser);
     db.run('INSERT INTO users (username, salt, hash, createdAt) VALUES (?, ?, ?, ?)',
-      [usernameInput.trim(), salt, hash, now], () => reloadCache());
+      [usernameInput.trim(), salt, hash, now], (err) => {
+        reloadCache();
+        if (callback) callback(err);
+      });
   }
 }
 

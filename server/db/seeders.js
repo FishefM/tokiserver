@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { FIXED_USERS } from '../config/constants.js';
+import { reloadCache } from './queries.js';
 
 // Plantilla inicial ejecutada únicamente cuando la base de datos se crea por primera vez (COUNT = 0)
 const INITIAL_SEED_COMMANDS = {
@@ -85,7 +86,9 @@ export function runInitialSeed(db) {
         stmt.run(username, salt, hash, now);
         console.log(`> Usuario: ${username} | Contraseña: ${defaultPassword}`);
       });
-      stmt.finalize();
+      stmt.finalize(() => {
+        reloadCache();
+      });
       console.log('[AUTH] Credenciales iniciales guardadas en la base de datos cifrada.');
       console.log('==================================================\n');
     });
@@ -118,7 +121,9 @@ export function runInitialSeed(db) {
           now
         );
       }
-      stmt.finalize();
+      stmt.finalize(() => {
+        reloadCache();
+      });
     });
   });
 }
