@@ -33,19 +33,19 @@
     {
       "name": "Minecraft",
       "url": "/drive/minecraft/",
-      "description": "Archivos, mods y mapas de Minecraft",
+      "description": "Archivos y mods y de Minecraft",
       "icon": "gamepad"
     },
     {
       "name": "GTA SA",
       "url": "/drive/gta-sa/",
-      "description": "Juegos y archivos de GTA San Andreas",
+      "description": "GTA San Andreas... otra vez",
       "icon": "car"
     },
     {
       "name": "pvz Fusion",
       "url": "/drive/pvz/",
-      "description": "Mods y descargas de PvZ Fusion",
+      "description": "APK de PvZ Fusion",
       "icon": "zap"
     }
   ]

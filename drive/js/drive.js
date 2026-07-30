@@ -47,8 +47,8 @@ async function renderDriveView() {
 
     if (currentFolder) {
         // VISTA DE SUBDIRECTORIO / CARPETA ESPECÍFICA
-        if (locationEl) locationEl.textContent = `> LOCATION: /drive/${currentFolder}`;
-        if (sectionTitleEl) sectionTitleEl.textContent = `📁 ARCHIVOS Y SUBDIRECTORIOS EN /${currentFolder}`;
+        if (locationEl) locationEl.textContent = `> LOCATION: CHIMALHUACAN`;
+        if (sectionTitleEl) sectionTitleEl.textContent = `🐒 ARCHIVOS Y SUBDIRECTORIOS EN /${currentFolder}`;
         
         if (backBtnEl) {
             const parts = currentFolder.split('/');
@@ -128,8 +128,8 @@ async function renderDriveView() {
 
     } else {
         // VISTA PRINCIPAL / ROOT DE DRIVE
-        if (locationEl) locationEl.textContent = '> LOCATION: /drive';
-        if (sectionTitleEl) sectionTitleEl.textContent = '📁 CARPETAS DE DESCARGA DISPONIBLES';
+        if (locationEl) locationEl.textContent = '> LOCATION: CHIMALHUACAN';
+        if (sectionTitleEl) sectionTitleEl.textContent = ' 🐒 CARPETAS DE DESCARGA DISPONIBLES';
         if (backBtnEl) backBtnEl.style.display = 'none';
 
         grid.innerHTML = '<div class="empty-notice">[ CARGANDO CARPETAS DISPONIBLES... ]</div>';
