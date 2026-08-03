@@ -22,7 +22,7 @@ export const USER_AVATARS = {
     'jesus': { img: 'img/jesus.png', role: 'JESUS', phrase: 'LET ME COOK' },
     'hector': { img: 'img/hector.png', role: 'HECTOR', phrase: 'YO DEBI PROGRAMAR ESTO' },
     'inge': { img: 'img/inge.png', role: 'INGE', phrase: 'DEIGO?' },
-    'kitzya': { img: 'img/kitzya.png', role: 'KITZYA', phrase: 'ONLINE' }
+    'kitzya': { img: 'img/kitzya.png', role: 'KITZYA', phrase: 'ÑIÑIÑIÑI PUTO' }
 };
 
 export const USERS_LIST = ['Yucef', 'Jesus', 'Hector', 'Inge', 'Kitzya'];

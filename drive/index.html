@@ -6,6 +6,32 @@
     <title>TOKISERVER - DRIVE</title>
     <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/drive/css/drive.css">
+    <script>
+        // Interceptar y bloquear recargas automáticas enviadas por live-server u otros watchers durante la manipulación de archivos en TokiDrive
+        (function() {
+            if (typeof window.WebSocket !== 'undefined') {
+                const NativeWebSocket = window.WebSocket;
+                window.WebSocket = function(url, protocols) {
+                    const ws = new NativeWebSocket(url, protocols);
+                    let handler = null;
+                    Object.defineProperty(ws, 'onmessage', {
+                        get: function() { return handler; },
+                        set: function(fn) {
+                            handler = function(event) {
+                                if (event && (event.data === 'reload' || event.data === 'refreshcss')) {
+                                    console.warn('[TOKIDRIVE] Se interceptó y bloqueó una recarga automática de live-server durante la subida de archivos.');
+                                    return;
+                                }
+                                if (fn) fn.call(this, event);
+                            };
+                        }
+                    });
+                    return ws;
+                };
+                window.WebSocket.prototype = NativeWebSocket.prototype;
+            }
+        })();
+    </script>
 </head>
 <body>
 
@@ -34,13 +60,145 @@
 
         <div class="nav-back-bar">
             <a href="/drive" class="btn-back" id="drive-back-btn" style="display: none;">‹ VOLVER A /DRIVE</a>
+            <button type="button" class="btn-action-folder" id="btn-open-create-folder" title="Crear nueva carpeta">
+                <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/folder.svg'); mask-image: url('/img/icons/folder.svg'); width: 18px; height: 18px;"></span>
+                <span class="btn-folder-plus">+</span>
+                <span class="btn-folder-label"> NUEVA CARPETA</span>
+            </button>
         </div>
 
-        <h2 class="section-header" id="drive-section-title">🐒 CARPETAS DE DESCARGA DISPONIBLES</h2>
+        <!-- Zona de Carga de Archivos / Drag & Drop Dropzone -->
+        <label for="file-input-hidden" class="upload-drop-zone" id="upload-drop-card">
+            <div class="upload-icon-wrapper">
+                <span class="pixel-icon-mask magenta" style="-webkit-mask-image: url('/img/icons/upload.svg'); mask-image: url('/img/icons/upload.svg');"></span>
+            </div>
+            <div class="upload-text-group">
+                <span class="upload-title">ARRASTRA Y SUELTA ARCHIVOS AQUÍ PARA SUBIR</span>
+                <span class="upload-subtitle" id="upload-target-hint">Se guardarán en la carpeta actual</span>
+            </div>
+            <input type="file" id="file-input-hidden" multiple style="display: none;" />
+        </label>
+        
+        <!-- Notificación y barra de progreso de subida -->
+        <div class="upload-status-box" id="upload-status-box" style="display: none;">
+            <div class="status-content">
+                <span class="pixel-icon-mask magenta" style="-webkit-mask-image: url('/img/icons/zap.svg'); mask-image: url('/img/icons/zap.svg'); width: 22px; height: 22px;"></span>
+                <span class="status-text" id="upload-status-text">SUBIENDO ARCHIVO(S)...</span>
+            </div>
+            <div class="progress-bar-track">
+                <div class="progress-bar-fill" id="upload-progress-fill"></div>
+            </div>
+        </div>
+
+        <h2 class="section-header" id="drive-section-title">
+            <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/folder.svg'); mask-image: url('/img/icons/folder.svg');"></span>
+            CARPETAS DE DESCARGA DISPONIBLES
+        </h2>
         <div class="cards-grid" id="drive-folders-grid">
             <!-- Cargado dinámicamente mediante JS -->
         </div>
     </main>
+
+    <!-- Modal para Crear Nueva Carpeta -->
+    <div class="folder-modal-overlay" id="create-folder-modal" style="display: none;">
+        <div class="folder-modal-card">
+            <h2 class="folder-modal-title">
+                <span class="pixel-icon-mask magenta" style="-webkit-mask-image: url('/img/icons/folder.svg'); mask-image: url('/img/icons/folder.svg'); width: 24px; height: 24px; margin-right: 8px;"></span>
+                CREAR NUEVA CARPETA
+            </h2>
+            <p class="folder-modal-subtitle" id="create-folder-location-hint">> DESTINO: /DRIVE</p>
+
+            <form id="create-folder-form">
+                <div class="folder-input-group">
+                    <label for="new-folder-name">> NOMBRE DE LA CARPETA:</label>
+                    <input type="text" id="new-folder-name" class="crt-input" placeholder="Ej: Servidores Minecraft" required autocomplete="off" />
+                </div>
+
+                <div class="folder-input-group">
+                    <label for="new-folder-url">> DIRECCIÓN / RUTA ACCESO:</label>
+                    <input type="text" id="new-folder-url" class="crt-input" placeholder="Ej: /drive/minecraft/" autocomplete="off" />
+                </div>
+
+                <div class="folder-input-group">
+                    <label for="new-folder-desc">> DESCRIPCIÓN (OPCIONAL):</label>
+                    <input type="text" id="new-folder-desc" class="crt-input" placeholder="Ej: Archivos y complemento de servidores" autocomplete="off" />
+                </div>
+
+                <div class="folder-input-group">
+                    <label>> SELECCIONAR ÍCONO:</label>
+                    <div class="icon-picker-grid" id="icon-picker-grid">
+                        <!-- Íconos generados dinámicamente -->
+                    </div>
+                    <input type="hidden" id="selected-icon-input" value="folder" />
+                </div>
+
+                <div class="folder-modal-actions">
+                    <button type="submit" class="btn-modal-action primary">
+                        [ CREAR CARPETA ]
+                    </button>
+                    <button type="button" class="btn-modal-action cancel" id="btn-close-folder-modal">
+                        [ CANCELAR ]
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal para Renombrar Elemento -->
+    <div class="folder-modal-overlay" id="rename-item-modal" style="display: none;">
+        <div class="folder-modal-card">
+            <h2 class="folder-modal-title">
+                <span class="pixel-icon-mask magenta" style="-webkit-mask-image: url('/img/icons/edit.svg'); mask-image: url('/img/icons/edit.svg'); width: 24px; height: 24px; margin-right: 8px;"></span>
+                RENOMBRAR ELEMENTO
+            </h2>
+            <form id="rename-item-form">
+                <div class="folder-input-group">
+                    <label for="rename-item-input">> NUEVO NOMBRE:</label>
+                    <input type="text" id="rename-item-input" class="crt-input" required autocomplete="off" />
+                </div>
+                <div class="folder-modal-actions">
+                    <button type="submit" class="btn-modal-action primary">
+                        [ RENOMBRAR ]
+                    </button>
+                    <button type="button" class="btn-modal-action cancel" id="btn-close-rename-modal">
+                        [ CANCELAR ]
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal para Eliminar Elemento -->
+    <div class="folder-modal-overlay" id="delete-item-modal" style="display: none;">
+        <div class="folder-modal-card">
+            <h2 class="folder-modal-title" style="color: var(--red-alert);">
+                <span class="pixel-icon-mask red" style="-webkit-mask-image: url('/img/icons/trash.svg'); mask-image: url('/img/icons/trash.svg'); width: 24px; height: 24px; margin-right: 8px;"></span>
+                CONFIRMAR ELIMINACIÓN
+            </h2>
+            <p class="folder-modal-subtitle" style="color: var(--red-alert); margin-bottom: 20px;">
+                ¿ESTÁS SEGURO DE ELIMINAR "<span id="delete-item-name-tag" style="color: #fff; font-weight: bold;"></span>"? ESTA ACCIÓN ES IRREVERSIBLE.
+            </p>
+            <div class="folder-modal-actions">
+                <button type="button" class="btn-modal-action cancel" id="btn-confirm-delete" style="background: var(--red-alert); color: #000;">
+                    [ SÍ, ELIMINAR ]
+                </button>
+                <button type="button" class="btn-modal-action primary" id="btn-close-delete-modal">
+                    [ CANCELAR ]
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Overlay para Drag & Drop Global -->
+    <div class="drag-drop-overlay" id="drag-drop-overlay">
+        <div class="drag-drop-modal">
+            <div class="drag-icon-pulse">
+                <span class="pixel-icon-mask magenta" style="-webkit-mask-image: url('/img/icons/upload.svg'); mask-image: url('/img/icons/upload.svg'); width: 56px; height: 56px;"></span>
+            </div>
+            <h2>[ SUELTA LOS ARCHIVOS PARA SUBIR AL SERVIDOR ]</h2>
+            <p id="drag-target-folder-name">> DESTINO: /DRIVE</p>
+        </div>
+    </div>
 
     <!-- Scripts Modulares Globales -->
     <script src="/js/navbar.js"></script>

@@ -36,6 +36,8 @@ app.use((req, res, next) => {
   next();
 });
 
+const DRIVE_ROOT = path.join(htmlRoot, 'drive');
+
 // Enrutadores API (Soporta proxy Nginx con o sin recorte de prefijo /api)
 app.use('/api', authRoutes);
 app.use('/api/command', commandRoutes);
@@ -46,6 +48,10 @@ app.use('/', authRoutes);
 app.use('/command', commandRoutes);
 app.use('/status', statusRoutes);
 app.use('/drive', driveRoutes);
+
+// Servir archivos del frontend y descargas directas de TokiDrive
+app.use('/drive', express.static(DRIVE_ROOT));
+app.use(express.static(htmlRoot));
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n==================================================`);
