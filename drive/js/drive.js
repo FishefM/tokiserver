@@ -169,27 +169,52 @@ async function renderDriveView() {
         grid.innerHTML = '<div class="empty-notice">[ CARGANDO CARPETAS DISPONIBLES... ]</div>';
 
         try {
-            const res = await fetch('/config.json');
-            const data = await res.json();
+            // 1. Obtener la lista real de carpetas físicas en la raíz de Drive desde el backend
+            const listRes = await fetch(`${getBackendUrl()}/api/drive/list?folder=`);
+            const listData = await listRes.json();
 
-            if (!data || !data.driveFolders) return;
+            // 2. Obtener configuraciones de íconos/descripciones de config.json sin caché
+            let configFolders = [];
+            try {
+                const cfgRes = await fetch(`/config.json?t=${Date.now()}`);
+                const cfgData = await cfgRes.json();
+                if (cfgData && cfgData.driveFolders) {
+                    configFolders = cfgData.driveFolders;
+                }
+            } catch (e) {}
 
             grid.innerHTML = '';
 
-            data.driveFolders.forEach(async (folder, idx) => {
+            const physicalDirs = (listData && listData.items) ? listData.items.filter(item => item.isDir) : [];
+
+            if (physicalDirs.length === 0 && configFolders.length === 0) {
+                grid.innerHTML = '<div class="empty-notice">[ NO HAY CARPETAS DISPONIBLES EN LA RAÍZ ]</div>';
+                return;
+            }
+
+            // Mapear cada carpeta física existente en /drive
+            physicalDirs.forEach((item) => {
+                const folderName = item.name;
+                const cleanRoute = folderName;
+                const escapedFolderName = (folderName || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+                // Buscar si existe configuración de ícono/descripción en config.json
+                const cfgMatch = configFolders.find(f => {
+                    const cfgClean = f.url.replace(/^\/drive\/?/, '').replace(/\/$/, '');
+                    return f.name.toLowerCase() === folderName.toLowerCase() || cfgClean.toLowerCase() === folderName.toLowerCase();
+                });
+
+                const iconName = cfgMatch ? (cfgMatch.icon || 'folder') : 'folder';
+                const description = cfgMatch ? (cfgMatch.description || 'Carpeta de archivos') : 'Carpeta de archivos';
+                const iconPath = `/img/icons/${iconName}.svg`;
+
                 const card = document.createElement('a');
-                const cleanRoute = folder.url.replace(/^\/drive\/?/, '').replace(/\/$/, '');
-                const escapedFolderName = (folder.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                
                 card.href = `?folder=${encodeURIComponent(cleanRoute)}`;
                 card.className = 'card';
                 card.onclick = (e) => {
                     e.preventDefault();
                     window.location.hash = `#/${cleanRoute}`;
                 };
-
-                const iconName = folder.icon || 'folder';
-                const iconPath = `/img/icons/${iconName}.svg`;
 
                 card.innerHTML = `
                     <div>
@@ -198,33 +223,25 @@ async function renderDriveView() {
                                 <span class="pixel-icon-mask" style="-webkit-mask-image: url('${iconPath}'); mask-image: url('${iconPath}');"></span>
                             </div>
                             <div class="card-header-actions">
-                                <span class="card-route-tag" id="root-folder-size-${idx}">...</span>
+                                <span class="card-route-tag">${formatBytes(item.size)}</span>
                                 <button type="button" class="btn-card-menu" title="Opciones" onclick="event.preventDefault(); event.stopPropagation(); toggleCardMenu(this, '${escapedFolderName}');">
                                     <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/more-vertical.svg'); mask-image: url('/img/icons/more-vertical.svg');"></span>
                                 </button>
                             </div>
                         </div>
-                        <h3 class="card-title">${folder.name}</h3>
-                        <p class="card-desc">${folder.description || 'Explorar archivos de descarga'}</p>
+                        <h3 class="card-title">${folderName}</h3>
+                        <p class="card-desc">${description}</p>
                     </div>
                     <div class="card-btn">[ EXPLORAR ARCHIVOS ]</div>
                 `;
 
                 grid.appendChild(card);
-
-                // Obtener peso total acumulado de la carpeta desde el backend
-                try {
-                    const listRes = await fetch(`${getBackendUrl()}/api/drive/list?folder=${encodeURIComponent(cleanRoute)}`);
-                    const listData = await listRes.json();
-                    const badgeEl = document.getElementById(`root-folder-size-${idx}`);
-                    if (badgeEl && listData && typeof listData.totalSize === 'number') {
-                        badgeEl.textContent = formatBytes(listData.totalSize);
-                    }
-                } catch (e) {}
             });
         } catch (err) {
             console.error('[DRIVE JS] Error al cargar la vista raíz:', err);
+            grid.innerHTML = '<div class="empty-notice">[ ERROR AL CARGAR CARPETAS DE LA RAÍZ ]</div>';
         }
+    }
     }
 }
 
