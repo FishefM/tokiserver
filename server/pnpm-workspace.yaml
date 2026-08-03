@@ -1,2 +1,2 @@
 allowBuilds:
-  '@journeyapps/sqlcipher': set this to true or false
+  '@journeyapps/sqlcipher': true
