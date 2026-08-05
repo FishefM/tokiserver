@@ -59,12 +59,10 @@ async function renderDriveView() {
     if (!grid) return;
 
     if (currentFolder) {
-        // VISTA DE SUBDIRECTORIO / CARPETA ESPECÍFICA
         if (locationEl) locationEl.textContent = `> LOCATION: CHIMALHUACAN / ${currentFolder.toUpperCase()}`;
         if (sectionTitleEl) {
             sectionTitleEl.innerHTML = `<span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/folder.svg'); mask-image: url('/img/icons/folder.svg');"></span> ARCHIVOS Y SUBDIRECTORIOS EN /${currentFolder}`;
         }
-        
         if (backBtnEl) {
             const parts = currentFolder.split('/');
             parts.pop();
@@ -80,213 +78,165 @@ async function renderDriveView() {
                 }
             };
         }
-
-        grid.innerHTML = '<div class="empty-notice">[ CARGANDO ARCHIVOS DE LA CARPETA... ]</div>';
-
-        try {
-            const res = await fetch(`${getBackendUrl()}/api/drive/list?folder=${encodeURIComponent(currentFolder)}`);
-            const data = await res.json();
-
-            if (!data.success || !data.items || data.items.length === 0) {
-                grid.innerHTML = '<div class="empty-notice">[ ESTA CARPETA NO CONTIENE ARCHIVOS AÚN. ¡ARRASTRA Y SUELTA ARCHIVOS PARA AGREGARLOS! ]</div>';
-                return;
-            }
-
-            grid.innerHTML = '';
-            
-            // Ordenar: Carpetas primero, luego archivos
-            const sortedItems = [...data.items].sort((a, b) => (b.isDir - a.isDir) || a.name.localeCompare(b.name));
-
-            sortedItems.forEach(item => {
-                const card = document.createElement('a');
-                const subPath = `${currentFolder}/${item.name}`;
-                const escapedName = (item.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-
-                if (item.isDir) {
-                    card.href = `?folder=${encodeURIComponent(subPath)}`;
-                    card.onclick = (e) => {
-                        e.preventDefault();
-                        window.location.hash = `#/${subPath}`;
-                    };
-                    card.className = 'card dir-card';
-
-                    const iconPath = `/img/icons/folder.svg`;
-                    card.innerHTML = `
-                        <div>
-                            <div class="card-header">
-                                <div class="card-icon-wrapper">
-                                    <span class="pixel-icon-mask" style="-webkit-mask-image: url('${iconPath}'); mask-image: url('${iconPath}');"></span>
-                                </div>
-                                <div class="card-header-actions">
-                                    <span class="card-route-tag">${formatBytes(item.size)}</span>
-                                    <button type="button" class="btn-card-menu" title="Opciones" onclick="event.preventDefault(); event.stopPropagation(); toggleCardMenu(this, '${escapedName}');">
-                                        <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/more-vertical.svg'); mask-image: url('/img/icons/more-vertical.svg');"></span>
-                                    </button>
-                                </div>
-                            </div>
-                            <h3 class="card-title">${item.name}</h3>
-                            <p class="card-desc">Subdirectorio de archivos</p>
-                        </div>
-                        <div class="card-btn">[ EXPLORAR CARPETA ]</div>
-                    `;
-                } else {
-                    card.href = `/drive/${subPath}`;
-                    card.className = 'card file-card';
-                    card.setAttribute('download', '');
-
-                    card.innerHTML = `
-                        <div>
-                            <div class="card-header file-header">
-                                <div class="card-header-actions" style="margin-left: auto;">
-                                    <span class="card-route-tag">${formatBytes(item.size)}</span>
-                                    <button type="button" class="btn-card-menu" title="Opciones" onclick="event.preventDefault(); event.stopPropagation(); toggleCardMenu(this, '${escapedName}');">
-                                        <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/more-vertical.svg'); mask-image: url('/img/icons/more-vertical.svg');"></span>
-                                    </button>
-                                </div>
-                            </div>
-                            <h3 class="card-title" style="margin-top: 6px; margin-bottom: 20px;">${item.name}</h3>
-                        </div>
-                        <div class="card-btn">[ DESCARGAR ARCHIVO ]</div>
-                    `;
-                }
-
-                grid.appendChild(card);
-            });
-
-        } catch (err) {
-            console.error('[DRIVE JS] Error al cargar subdirectorio:', err);
-            grid.innerHTML = '<div class="empty-notice">[ ERROR DE CONEXIÓN AL LEER LA CARPETA ]</div>';
-        }
-
     } else {
-        // VISTA PRINCIPAL / ROOT DE DRIVE
         if (locationEl) locationEl.textContent = '> LOCATION: CHIMALHUACAN';
         if (sectionTitleEl) {
             sectionTitleEl.innerHTML = `<span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/folder.svg'); mask-image: url('/img/icons/folder.svg');"></span> CARPETAS DE DESCARGA DISPONIBLES`;
         }
         if (backBtnEl) backBtnEl.style.display = 'none';
+    }
 
-        grid.innerHTML = '<div class="empty-notice">[ CARGANDO CARPETAS DISPONIBLES... ]</div>';
+    grid.innerHTML = '<div class="empty-notice">[ CARGANDO CONTENIDO... ]</div>';
 
-        let configFolders = [];
-        try {
-            const cfgRes = await fetch(`/config.json?t=${Date.now()}`);
-            if (cfgRes.ok) {
-                const cfgData = await cfgRes.json();
-                if (cfgData && cfgData.driveFolders) {
-                    configFolders = cfgData.driveFolders;
-                }
-            }
-        } catch (e) {
-            console.warn('[DRIVE JS] No se pudo leer config.json:', e);
-        }
+    try {
+        const res = await fetch(`${getBackendUrl()}/api/drive/list?folder=${encodeURIComponent(currentFolder)}`);
+        const data = await res.json();
 
-        let apiFolders = [];
-        try {
-            const listRes = await fetch(`${getBackendUrl()}/api/drive/list?folder=`);
-            if (listRes.ok) {
-                const listData = await listRes.json();
-                if (listData && listData.items) {
-                    apiFolders = listData.items.filter(item => item.isDir && item.name !== 'css' && item.name !== 'js');
-                }
-            }
-        } catch (e) {
-            console.warn('[DRIVE JS] No se pudo leer /api/drive/list:', e);
-        }
-
-        // Combinar carpetas de config.json y carpetas físicas reales
-        const combinedFolders = [];
-
-        // 1. Agregar carpetas de config.json
-        configFolders.forEach(cfg => {
-            const cleanRoute = cfg.url.replace(/^\/drive\/?/, '').replace(/\/$/, '');
-            combinedFolders.push({
-                name: cfg.name,
-                route: cleanRoute,
-                icon: cfg.icon || 'folder',
-                description: cfg.description || 'Carpeta de archivos'
-            });
-        });
-
-        // 2. Agregar carpetas físicas que no estén en config.json
-        apiFolders.forEach(apiDir => {
-            const alreadyAdded = combinedFolders.some(f => f.route.toLowerCase() === apiDir.name.toLowerCase() || f.name.toLowerCase() === apiDir.name.toLowerCase());
-            if (!alreadyAdded) {
-                combinedFolders.push({
-                    name: apiDir.name,
-                    route: apiDir.name,
-                    icon: 'folder',
-                    description: 'Carpeta de archivos'
-                });
-            }
-        });
-
-        if (combinedFolders.length === 0) {
-            grid.innerHTML = '<div class="empty-notice">[ NO HAY CARPETAS DISPONIBLES EN LA RAÍZ ]</div>';
+        if (!data.success || !data.items || data.items.length === 0) {
+            grid.innerHTML = currentFolder ? 
+                '<div class="empty-notice">[ ESTA CARPETA NO CONTIENE ARCHIVOS AÚN. ¡ARRASTRA Y SUELTA ARCHIVOS PARA AGREGARLOS! ]</div>' : 
+                '<div class="empty-notice">[ NO HAY CARPETAS DISPONIBLES EN LA RAÍZ ]</div>';
             return;
         }
 
         grid.innerHTML = '';
+        
+        // Ordenar: Carpetas primero, luego archivos
+        const sortedItems = [...data.items].sort((a, b) => (b.isDir - a.isDir) || a.name.localeCompare(b.name));
 
-        combinedFolders.forEach(async (folder, idx) => {
+        sortedItems.forEach(item => {
             const card = document.createElement('a');
-            const cleanRoute = folder.route;
-            const escapedFolderName = (folder.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-            
-            card.href = `?folder=${encodeURIComponent(cleanRoute)}`;
-            card.className = 'card';
-            card.onclick = (e) => {
-                e.preventDefault();
-                window.location.hash = `#/${cleanRoute}`;
-            };
-
-            const iconName = folder.icon || 'folder';
+            const subPath = currentFolder ? `${currentFolder}/${item.name}` : item.name;
+            const escapedName = (item.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const iconName = item.icon || (item.isDir ? 'folder' : 'file-text');
             const iconPath = `/img/icons/${iconName}.svg`;
 
-            card.innerHTML = `
-                <div>
-                    <div class="card-header">
-                        <div class="card-icon-wrapper">
-                            <span class="pixel-icon-mask" style="-webkit-mask-image: url('${iconPath}'); mask-image: url('${iconPath}');"></span>
+            if (item.isDir) {
+                card.href = `?folder=${encodeURIComponent(subPath)}`;
+                card.onclick = (e) => {
+                    e.preventDefault();
+                    window.location.hash = `#/${subPath}`;
+                };
+                card.className = 'card dir-card';
+
+                card.innerHTML = `
+                    <div>
+                        <div class="card-header">
+                            <div class="card-icon-wrapper">
+                                <span class="pixel-icon-mask" style="-webkit-mask-image: url('${iconPath}'); mask-image: url('${iconPath}');"></span>
+                            </div>
+                            <div class="card-header-actions">
+                                <span class="card-route-tag">${formatBytes(item.size)}</span>
+                                <button type="button" class="btn-card-menu" title="Opciones" onclick="event.preventDefault(); event.stopPropagation(); toggleCardMenu(this, '${escapedName}');">
+                                    <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/more-vertical.svg'); mask-image: url('/img/icons/more-vertical.svg');"></span>
+                                </button>
+                            </div>
                         </div>
-                        <div class="card-header-actions">
-                            <span class="card-route-tag" id="root-folder-size-${idx}">...</span>
-                            <button type="button" class="btn-card-menu" title="Opciones" onclick="event.preventDefault(); event.stopPropagation(); toggleCardMenu(this, '${escapedFolderName}');">
-                                <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/more-vertical.svg'); mask-image: url('/img/icons/more-vertical.svg');"></span>
-                            </button>
-                        </div>
+                        <h3 class="card-title">${item.name}</h3>
+                        <p class="card-desc">${item.description || 'Subdirectorio de archivos'}</p>
                     </div>
-                    <h3 class="card-title">${folder.name}</h3>
-                    <p class="card-desc">${folder.description}</p>
-                </div>
-                <div class="card-btn">[ EXPLORAR ARCHIVOS ]</div>
-            `;
+                    <div class="card-btn">${currentFolder ? '[ EXPLORAR CARPETA ]' : '[ EXPLORAR ARCHIVOS ]'}</div>
+                `;
+            } else {
+                card.href = `/drive/${subPath}`;
+                card.className = 'card file-card';
+                card.setAttribute('download', '');
+
+                card.innerHTML = `
+                    <div>
+                        <div class="card-header file-header">
+                            <div class="card-header-actions" style="margin-left: auto;">
+                                <span class="card-route-tag">${formatBytes(item.size)}</span>
+                                <button type="button" class="btn-card-menu" title="Opciones" onclick="event.preventDefault(); event.stopPropagation(); toggleCardMenu(this, '${escapedName}');">
+                                    <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/more-vertical.svg'); mask-image: url('/img/icons/more-vertical.svg');"></span>
+                                </button>
+                            </div>
+                        </div>
+                        <h3 class="card-title" style="margin-top: 6px; margin-bottom: 20px;">${item.name}</h3>
+                    </div>
+                    <div class="card-btn">[ DESCARGAR ARCHIVO ]</div>
+                `;
+            }
 
             grid.appendChild(card);
-
-            // Cargar tamaño acumulado desde el backend
-            try {
-                const listRes = await fetch(`${getBackendUrl()}/api/drive/list?folder=${encodeURIComponent(cleanRoute)}`);
-                if (listRes.ok) {
-                    const listData = await listRes.json();
-                    const badgeEl = document.getElementById(`root-folder-size-${idx}`);
-                    if (badgeEl && listData && typeof listData.totalSize === 'number') {
-                        badgeEl.textContent = formatBytes(listData.totalSize);
-                    }
-                }
-            } catch (e) {}
         });
+
+    } catch (err) {
+        console.error('[DRIVE JS] Error al cargar contenido:', err);
+        grid.innerHTML = '<div class="empty-notice">[ ERROR DE CONEXIÓN AL LEER EL SERVIDOR ]</div>';
     }
 }
 
 // ==================================================
-// LÓGICA DE SUBIDA Y DRAG & DROP
+// LÓGICA DE SUBIDA Y DRAG & DROP DE ARCHIVOS Y CARPETAS
 // ==================================================
 
 let statusBoxHideTimeout = null;
 
-function uploadFiles(fileList) {
-    if (!fileList || fileList.length === 0) return;
+// Extrae recursivamente todos los archivos de ítems o carpetas arrastradas manteniendo la estructura relativa
+async function parseDroppedItems(dataTransferItems) {
+    const fileResults = [];
+    const emptyDirResults = [];
+    const queue = [];
+
+    for (let i = 0; i < dataTransferItems.length; i++) {
+        const item = dataTransferItems[i];
+        if (item.kind === 'file') {
+            const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+            if (entry) {
+                queue.push(entry);
+            } else {
+                const file = item.getAsFile();
+                if (file) fileResults.push({ file, path: file.name });
+            }
+        }
+    }
+
+    while (queue.length > 0) {
+        const entry = queue.shift();
+        if (entry.isFile) {
+            const file = await new Promise((resolve) => entry.file(resolve, () => resolve(null)));
+            if (file) {
+                const cleanPath = entry.fullPath ? entry.fullPath.replace(/^\/+/, '') : file.name;
+                fileResults.push({ file, path: cleanPath });
+            }
+        } else if (entry.isDirectory) {
+            const dirReader = entry.createReader();
+            const readEntriesBatch = () => new Promise((resolve) => dirReader.readEntries(resolve, () => resolve([])));
+            let entries = await readEntriesBatch();
+            let hasChildren = false;
+            while (entries && entries.length > 0) {
+                hasChildren = true;
+                for (const subEntry of entries) {
+                    queue.push(subEntry);
+                }
+                entries = await readEntriesBatch();
+            }
+            if (!hasChildren) {
+                const cleanPath = entry.fullPath ? entry.fullPath.replace(/^\/+/, '') : entry.name;
+                emptyDirResults.push(cleanPath);
+            }
+        }
+    }
+    return { files: fileResults, emptyDirs: emptyDirResults };
+}
+
+function uploadFiles(fileInputPayload) {
+    if (!fileInputPayload) return;
+
+    let fileItems = [];
+    let emptyDirs = [];
+
+    if (fileInputPayload.files && Array.isArray(fileInputPayload.files)) {
+        fileItems = fileInputPayload.files;
+        emptyDirs = fileInputPayload.emptyDirs || [];
+    } else if (Array.isArray(fileInputPayload) || fileInputPayload instanceof FileList) {
+        fileItems = Array.from(fileInputPayload);
+    } else {
+        return;
+    }
+
+    if (fileItems.length === 0 && emptyDirs.length === 0) return;
 
     const currentFolder = getCurrentFolderFromUrl();
     const statusBox = document.getElementById('upload-status-box');
@@ -320,31 +270,52 @@ function uploadFiles(fileList) {
         progressFill.style.width = '0%';
     }
 
+    // Normalizar lista de ítems a objetos { file, path }
+    const normalizedList = [];
     let totalSizeBytes = 0;
-    for (let i = 0; i < fileList.length; i++) {
-        totalSizeBytes += fileList[i].size;
+
+    for (let i = 0; i < fileItems.length; i++) {
+        const item = fileItems[i];
+        if (item.file && item.path) {
+            normalizedList.push(item);
+            totalSizeBytes += item.file.size;
+        } else if (item instanceof File) {
+            const relPath = item.webkitRelativePath || item.name;
+            normalizedList.push({ file: item, path: relPath });
+            totalSizeBytes += item.size;
+        }
     }
 
     const formattedTotal = formatBytes(totalSizeBytes);
-    if (statusText) statusText.textContent = `[ SUBIENDO ${fileList.length} ARCHIVO(S) (${formattedTotal})... 0% ]`;
+    if (statusText) {
+        statusText.textContent = `[ SUBIENDO ${normalizedList.length} ARCHIVO(S) (${formattedTotal})... 0% ]`;
+    }
 
     const formData = new FormData();
     formData.append('folder', currentFolder);
 
-    for (let i = 0; i < fileList.length; i++) {
-        formData.append('files', fileList[i]);
+    // IMPORTANTE: Enviar relativePaths y emptyDirs ANTES de los archivos en FormData
+    const relativePaths = normalizedList.map(item => item.path);
+    formData.append('relativePaths', JSON.stringify(relativePaths));
+
+    if (emptyDirs && emptyDirs.length > 0) {
+        formData.append('emptyDirs', JSON.stringify(emptyDirs));
+    }
+
+    for (let i = 0; i < normalizedList.length; i++) {
+        formData.append('files', normalizedList[i].file, normalizedList[i].file.name);
     }
 
     const xhr = new XMLHttpRequest();
     const uploadUrl = `${getBackendUrl()}/api/drive/upload?folder=${encodeURIComponent(currentFolder)}`;
 
-    xhr.timeout = 0; // Sin límite de tiempo en el cliente (ideal para archivos de +60MB en LAN/WiFi)
+    xhr.timeout = 0; // Sin límite de tiempo en el cliente
 
     xhr.upload.addEventListener('progress', (e) => {
         if (e.lengthComputable) {
             const percent = Math.round((e.loaded / e.total) * 100);
             if (progressFill) progressFill.style.width = `${percent}%`;
-            if (statusText) statusText.textContent = `[ SUBIENDO ${fileList.length} ARCHIVO(S) (${formattedTotal})... ${percent}% ]`;
+            if (statusText) statusText.textContent = `[ SUBIENDO ${normalizedList.length} ARCHIVO(S) (${formattedTotal})... ${percent}% ]`;
         }
     });
 
@@ -369,7 +340,7 @@ function uploadFiles(fileList) {
 
         if (xhr.status >= 200 && xhr.status < 300 && response.success) {
             if (progressFill) progressFill.style.width = '100%';
-            if (statusText) statusText.textContent = `[ ÉXITO ] ${response.message || 'Archivos subidos exitosamente'}`;
+            if (statusText) statusText.textContent = `[ ÉXITO ] ${response.message || 'Archivos y carpetas subidos exitosamente'}`;
             
             renderDriveView();
 
@@ -455,14 +426,18 @@ function initDragAndDrop() {
         }
     });
 
-    window.addEventListener('drop', (e) => {
+    window.addEventListener('drop', async (e) => {
         e.preventDefault();
         dragCounter = 0;
         if (overlay) overlay.classList.remove('active');
 
-        const files = e.dataTransfer.files;
-        if (files && files.length > 0) {
-            uploadFiles(files);
+        if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+            const parsedData = await parseDroppedItems(e.dataTransfer.items);
+            if (parsedData && (parsedData.files.length > 0 || parsedData.emptyDirs.length > 0)) {
+                uploadFiles(parsedData);
+            }
+        } else if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            uploadFiles(e.dataTransfer.files);
         }
     });
 }

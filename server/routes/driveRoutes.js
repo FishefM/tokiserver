@@ -10,7 +10,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DRIVE_ROOT = path.resolve(__dirname, '..', '..', 'drive');
 
-// Configuración de almacenamiento para Multer
+// Configuración de almacenamiento para Multer (Soporta estructura de carpetas)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const rawFolder = (req.body.folder || req.query.folder || '').toString().trim();
@@ -26,20 +26,61 @@ const storage = multer.diskStorage({
       return cb(new Error('Acceso denegado: Ruta fuera del directorio de Drive'));
     }
 
-    if (!fs.existsSync(targetDir)) {
-      fs.mkdirSync(targetDir, { recursive: true });
+    // Extraer rutas relativas enviadas en req.body.relativePaths desde el cliente
+    let relativePaths = [];
+    if (req.body.relativePaths) {
+      try {
+        relativePaths = JSON.parse(req.body.relativePaths);
+      } catch (e) {
+        if (Array.isArray(req.body.relativePaths)) {
+          relativePaths = req.body.relativePaths;
+        }
+      }
     }
-    cb(null, targetDir);
+
+    if (typeof req._fileIndex === 'undefined') {
+      req._fileIndex = 0;
+    }
+
+    const itemRelativePath = relativePaths[req._fileIndex] || file.originalname || '';
+    req._fileIndex++;
+
+    const rawPath = itemRelativePath.replace(/\\/g, '/');
+    const relativeDir = path.dirname(rawPath);
+
+    let finalDir = targetDir;
+    if (relativeDir && relativeDir !== '.') {
+      const safeRelative = relativeDir.replace(/\.\./g, '').replace(/^\/+/, '');
+      finalDir = path.resolve(targetDir, safeRelative);
+    }
+
+    if (!finalDir.startsWith(targetDir)) {
+      return cb(new Error('Acceso denegado: Intento de escape de directorio en subcarpeta'));
+    }
+
+    if (!fs.existsSync(finalDir)) {
+      fs.mkdirSync(finalDir, { recursive: true });
+    }
+    cb(null, finalDir);
   },
   filename: (req, file, cb) => {
-    const safeName = path.basename(file.originalname).replace(/[\/\\]/g, '_');
+    let relativePaths = [];
+    if (req.body.relativePaths) {
+      try {
+        relativePaths = JSON.parse(req.body.relativePaths);
+      } catch (e) {}
+    }
+    const idx = Math.max(0, (req._fileIndex || 1) - 1);
+    const itemRelativePath = relativePaths[idx] || file.originalname || '';
+    const rawPath = itemRelativePath.replace(/\\/g, '/');
+    const safeName = path.basename(rawPath).replace(/[\/\\]/g, '_');
     cb(null, safeName);
   }
 });
 
 const upload = multer({
   storage,
-  limits: { fileSize: 500 * 1024 * 1024 } // 500 MB max limit por archivo
+  limits: { fileSize: 10 * 1024 * 1024 * 1024 } // 10 GB max limit por archivo
 });
 
 // POST /api/drive/upload (Soporta múltiples archivos y especificación de carpeta objetivo)
@@ -56,15 +97,36 @@ router.post('/upload', (req, res) => {
       return res.status(400).json({ success: false, error: err.message || 'Error al procesar la subida del archivo' });
     }
 
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ success: false, error: 'No se enviaron archivos para subir' });
+    const targetFolder = (req.query.folder || req.body.folder || '').toString().trim();
+    const safeFolder = targetFolder.replace(/\.\./g, '').replace(/^\/+/, '');
+    const targetDir = path.resolve(DRIVE_ROOT, safeFolder);
+
+    // Crear carpetas vacías si se enviaron en req.body.emptyDirs
+    if (req.body.emptyDirs && targetDir.startsWith(DRIVE_ROOT)) {
+      try {
+        const emptyDirs = typeof req.body.emptyDirs === 'string' ? JSON.parse(req.body.emptyDirs) : req.body.emptyDirs;
+        if (Array.isArray(emptyDirs)) {
+          for (const dirPath of emptyDirs) {
+            const safeDir = String(dirPath).replace(/\.\./g, '').replace(/^\/+/, '');
+            const fullEmptyDir = path.resolve(targetDir, safeDir);
+            if (fullEmptyDir.startsWith(targetDir) && !fs.existsSync(fullEmptyDir)) {
+              fs.mkdirSync(fullEmptyDir, { recursive: true });
+            }
+          }
+        }
+      } catch (e) {
+        console.error('[DRIVE EMPTY DIRS ERROR]', e);
+      }
     }
 
-    const uploadedFiles = req.files.map(f => f.filename);
-    const targetFolder = (req.query.folder || req.body.folder || '').toString().trim();
+    if ((!req.files || req.files.length === 0) && !req.body.emptyDirs) {
+      return res.status(400).json({ success: false, error: 'No se enviaron archivos ni carpetas para subir' });
+    }
+
+    const uploadedFiles = req.files ? req.files.map(f => f.filename) : [];
     res.json({
       success: true,
-      message: `${uploadedFiles.length} archivo(s) subido(s) exitosamente`,
+      message: `${uploadedFiles.length} archivo(s) y carpetas procesadas exitosamente`,
       files: uploadedFiles,
       folder: targetFolder
     });
@@ -172,10 +234,9 @@ function getFolderSize(dirPath) {
   return totalSize;
 }
 
-// GET /api/drive/list?folder=pvz
+// GET /api/drive/list?folder=... (Fuente Única de Verdad para TokiDrive)
 router.get('/list', (req, res) => {
   try {
-    // Sanitizar la ruta para evitar directory traversal
     const rawFolder = (req.query.folder || '').toString().trim();
     const safeFolder = rawFolder.replace(/\.\./g, '').replace(/^\/+/, '');
     const targetDir = path.resolve(DRIVE_ROOT, safeFolder);
@@ -184,34 +245,93 @@ router.get('/list', (req, res) => {
       return res.status(404).json({ success: false, error: 'Carpeta no encontrada en TokiDrive' });
     }
 
+    // Leer config.json para sincronizar metadatos de carpetas en la raíz
+    let configFolders = [];
+    const configPath = path.resolve(__dirname, '..', '..', 'config.json');
+    if (fs.existsSync(configPath)) {
+      try {
+        const configData = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        if (configData && configData.driveFolders) {
+          configFolders = configData.driveFolders;
+        }
+      } catch (e) {}
+    }
+
     let overallSize = 0;
+    const itemsMap = new Map();
 
-    const items = fs.readdirSync(targetDir, { withFileTypes: true })
-      .filter(item => item.name !== 'index.html' && !item.name.startsWith('.'))
-      .map(item => {
-        const itemPath = path.join(targetDir, item.name);
-        const isDir = item.isDirectory();
-        let size = 0;
-        let mtime = new Date();
-        try {
-          if (isDir) {
-            size = getFolderSize(itemPath);
-          } else {
-            const stats = fs.statSync(itemPath);
-            size = stats.size;
-            mtime = stats.mtime;
-          }
-        } catch (e) {}
+    // 1. Leer directorios y archivos físicos en el sistema de archivos
+    const physicalItems = fs.readdirSync(targetDir, { withFileTypes: true })
+      .filter(item => item.name !== 'index.html' && !item.name.startsWith('.') && item.name !== 'css' && item.name !== 'js');
 
-        overallSize += size;
+    physicalItems.forEach(item => {
+      const itemPath = path.join(targetDir, item.name);
+      const isDir = item.isDirectory();
+      let size = 0;
+      let mtime = new Date();
 
-        return {
-          name: item.name,
-          isDir,
-          size,
-          updatedAt: mtime
-        };
+      try {
+        if (isDir) {
+          size = getFolderSize(itemPath);
+        } else {
+          const stats = fs.statSync(itemPath);
+          size = stats.size;
+          mtime = stats.mtime;
+        }
+      } catch (e) {}
+
+      overallSize += size;
+
+      let icon = isDir ? 'folder' : 'file-text';
+      let description = isDir ? 'Subdirectorio de archivos' : 'Archivo disponible para descarga';
+
+      if (!safeFolder && isDir) {
+        const cfg = configFolders.find(f => {
+          const cfgClean = f.url.replace(/^\/drive\/?/, '').replace(/\/$/, '');
+          return f.name.toLowerCase() === item.name.toLowerCase() || cfgClean.toLowerCase() === item.name.toLowerCase();
+        });
+        if (cfg) {
+          if (cfg.icon) icon = cfg.icon;
+          if (cfg.description) description = cfg.description;
+        }
+      }
+
+      itemsMap.set(item.name.toLowerCase(), {
+        name: item.name,
+        isDir,
+        size,
+        icon,
+        description,
+        updatedAt: mtime
       });
+    });
+
+    // 2. Si estamos en la raíz, incluir también carpetas configuradas en config.json que aún no contengan archivos en disco
+    if (!safeFolder) {
+      configFolders.forEach(cfg => {
+        const cleanRoute = cfg.url.replace(/^\/drive\/?/, '').replace(/\/$/, '');
+        const folderName = cfg.name || cleanRoute;
+        const key = folderName.toLowerCase();
+
+        if (!itemsMap.has(key) && !itemsMap.has(cleanRoute.toLowerCase())) {
+          const folderPath = path.join(DRIVE_ROOT, cleanRoute);
+          let folderSize = 0;
+          if (fs.existsSync(folderPath)) {
+            folderSize = getFolderSize(folderPath);
+          }
+          itemsMap.set(key, {
+            name: folderName,
+            isDir: true,
+            size: folderSize,
+            icon: cfg.icon || 'folder',
+            description: cfg.description || 'Carpeta de archivos',
+            updatedAt: new Date()
+          });
+        }
+      });
+    }
+
+    const items = Array.from(itemsMap.values());
 
     res.json({
       success: true,
