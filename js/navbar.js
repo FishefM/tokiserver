@@ -70,6 +70,22 @@ async function loadNavbar(activeUrl = '') {
             });
         }
 
+        // Enlace LOGIN / USUARIO
+        const loginLink = document.createElement('a');
+        loginLink.href = '/login';
+        const isLoginActive = (activeUrl === '/login' || (activeUrl === '' && currentPath.startsWith('/login')));
+        if (isLoginActive) {
+            loginLink.classList.add('active');
+        }
+        const token = localStorage.getItem('toki_admin_token');
+        const user = localStorage.getItem('toki_admin_user');
+        if (token && user) {
+            loginLink.innerHTML = `<span class="pixel-icon-mask${isLoginActive ? ' magenta' : ''}" style="-webkit-mask-image: url('/img/icons/user.svg'); mask-image: url('/img/icons/user.svg'); width: 18px; height: 18px; margin-right: 6px;"></span>${user.toUpperCase()}`;
+        } else {
+            loginLink.innerHTML = `<span class="pixel-icon-mask${isLoginActive ? ' magenta' : ''}" style="-webkit-mask-image: url('/img/icons/lock.svg'); mask-image: url('/img/icons/lock.svg'); width: 18px; height: 18px; margin-right: 6px;"></span>LOGIN`;
+        }
+        linksDiv.appendChild(loginLink);
+
         navbar.appendChild(linksDiv);
 
         // Event Listener para desplegar menú hamburguesa en móviles

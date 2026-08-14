@@ -116,6 +116,21 @@ export function getUser(usernameInput) {
   return cachedUsers.get(key) || null;
 }
 
+export function getUserAsync(usernameInput) {
+  return new Promise((resolve, reject) => {
+    if (!usernameInput) return resolve(null);
+    const lowerName = usernameInput.trim().toLowerCase();
+    const db = getDbConnection();
+    db.get('SELECT * FROM users WHERE LOWER(username) = ?', [lowerName], (err, row) => {
+      if (err) return reject(err);
+      if (row) {
+        cachedUsers.set(lowerName, row);
+      }
+      resolve(row || null);
+    });
+  });
+}
+
 export function saveUserPassword(usernameInput, salt, hash, callback) {
   const db = getDbConnection();
   const now = new Date().toISOString();

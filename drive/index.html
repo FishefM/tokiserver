@@ -7,6 +7,12 @@
     <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/drive/css/drive.css">
     <script>
+        // Si el usuario no tiene token en localStorage, redirigir inmediatamente a /login
+        if (!localStorage.getItem('toki_admin_token')) {
+            const currentPath = window.location.pathname + window.location.search + window.location.hash;
+            window.location.href = '/login?redirect=' + encodeURIComponent(currentPath);
+        }
+
         // Interceptar y bloquear recargas automáticas enviadas por live-server u otros watchers durante la manipulación de archivos en TokiDrive
         (function() {
             if (typeof window.WebSocket !== 'undefined') {

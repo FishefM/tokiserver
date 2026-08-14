@@ -9,8 +9,12 @@ import {
   renameDriveItem,
   deleteDriveItem
 } from '../services/driveService.js';
+import { requireAuth } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
+
+// Proteger todas las rutas de la API de TokiDrive (Subida, creación, eliminación, renombrado y listado)
+router.use(requireAuth);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

@@ -1,5 +1,6 @@
 import { formatBytes, getBackendUrl, getCurrentFolderFromUrl } from './driveUtils.js';
 import { renderDriveView } from './driveUI.js';
+import { getToken } from '/js/auth.js';
 
 let statusBoxHideTimeout = null;
 
@@ -191,6 +192,10 @@ export function uploadFiles(fileInputPayload) {
     });
 
     xhr.open('POST', uploadUrl, true);
+    const token = getToken();
+    if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    }
     xhr.send(formData);
 }
 

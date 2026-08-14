@@ -8,10 +8,10 @@ import { getCommandMap } from '../db.js';
 const router = express.Router();
 
 // POST /api/login
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const clientIp = getClientIp(req);
   const { username, password } = req.body;
-  const result = loginUser(username, password);
+  const result = await loginUser(username, password);
 
   if (result.success) {
     console.log(`[AUDIT LOGIN] Inicio de sesión exitoso: ${result.username} desde IP: ${clientIp}`);
@@ -47,10 +47,10 @@ router.get('/me', requireAuth, (req, res) => {
 });
 
 // POST /api/change-password
-router.post('/change-password', requireAuth, (req, res) => {
+router.post('/change-password', requireAuth, async (req, res) => {
   const clientIp = getClientIp(req);
   const { currentPassword, newPassword } = req.body;
-  const result = changePassword(req.user, currentPassword, newPassword);
+  const result = await changePassword(req.user, currentPassword, newPassword);
 
   if (result.success) {
     console.log(`[AUDIT PASSWORD_CHANGE] ${req.user} cambió su contraseña desde IP: ${clientIp}`);

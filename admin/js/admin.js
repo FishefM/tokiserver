@@ -3,8 +3,6 @@ import {
     getUser,
     setSession,
     clearSession,
-    updateLoginAvatar,
-    navigateUser,
     togglePasswordVisibility,
     openPasswordModal,
     closePasswordModal,
@@ -12,14 +10,13 @@ import {
     closeEasterEggModal
 } from './modules/authUI.js';
 
+import { logoutApi, changePasswordApi } from '/js/auth.js';
 import { appendTerminalLine } from './modules/consoleUI.js';
 import { getBackendUrl, checkBackendHealth, executeCommand, renderControlButtons } from './modules/commandUI.js';
 
 let healthCheckInterval = null;
 
-// Exponer funciones globales requeridas por atributos de eventos HTML (onclick, onsubmit, onchange)
-window.navigateUser = navigateUser;
-window.updateLoginAvatar = updateLoginAvatar;
+// Exponer funciones globales requeridas por atributos de eventos HTML (onclick, onsubmit)
 window.togglePasswordVisibility = togglePasswordVisibility;
 window.openPasswordModal = openPasswordModal;
 window.closePasswordModal = closePasswordModal;
@@ -27,7 +24,6 @@ window.openEasterEggModal = openEasterEggModal;
 window.closeEasterEggModal = closeEasterEggModal;
 window.appendTerminalLine = appendTerminalLine;
 window.logout = logout;
-window.handleLogin = handleLogin;
 window.handleChangePassword = handleChangePassword;
 window.executeCommand = (cmdName, e) => executeCommand(cmdName, e, logout);
 
@@ -36,26 +32,28 @@ export function applyUserPermissions(username, allowedCommands = []) {
     renderControlButtons('controls-grid', allowedCommands);
 }
 
+// Redirigir al módulo de login si el usuario no tiene sesión válida
+function redirectToLogin() {
+    window.location.href = '/login?redirect=/admin';
+}
+
 // Verificar autenticación actual del usuario
 export async function checkAuthStatus() {
     const token = getToken();
-    const loginView = document.getElementById('login-view');
     const mainPanel = document.getElementById('admin-main-panel');
     const currentUserDisplay = document.getElementById('current-user-display');
 
     if (!token) {
         document.documentElement.classList.remove('has-token');
-        if (loginView) loginView.style.display = 'flex';
         if (mainPanel) mainPanel.style.display = 'none';
         if (healthCheckInterval) clearInterval(healthCheckInterval);
-        updateLoginAvatar();
         applyUserPermissions('');
+        redirectToLogin();
         return false;
     }
 
     // Si existe token, mostramos inmediatamente el panel mientras valida de fondo
     document.documentElement.classList.add('has-token');
-    if (loginView) loginView.style.display = 'none';
     if (mainPanel) mainPanel.style.display = 'flex';
     if (getUser()) {
         if (currentUserDisplay) currentUserDisplay.textContent = getUser();
@@ -79,11 +77,10 @@ export async function checkAuthStatus() {
             return true;
         } else {
             clearSession();
-            if (loginView) loginView.style.display = 'flex';
             if (mainPanel) mainPanel.style.display = 'none';
             if (healthCheckInterval) clearInterval(healthCheckInterval);
-            updateLoginAvatar();
             applyUserPermissions('');
+            redirectToLogin();
             return false;
         }
     } catch (err) {
@@ -95,59 +92,11 @@ export async function checkAuthStatus() {
     }
 }
 
-// Iniciar sesión
-export async function handleLogin(e) {
-    if (e && e.preventDefault) e.preventDefault();
-    const usernameEl = document.getElementById('login-username');
-    const passwordEl = document.getElementById('login-password');
-    const errorMsgEl = document.getElementById('login-error-msg');
-
-    if (!usernameEl || !passwordEl) return;
-
-    const username = usernameEl.value.trim();
-    const password = passwordEl.value;
-
-    if (errorMsgEl) errorMsgEl.textContent = '';
-
-    try {
-        const res = await fetch(`${getBackendUrl()}/api/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
-        });
-
-        const data = await res.json();
-
-        if (res.ok && data.success) {
-            setSession(data.token, data.username);
-            passwordEl.value = '';
-            applyUserPermissions(data.username);
-            await checkAuthStatus();
-            appendTerminalLine(`[SESIÓN INICIADA] Bienvenido ${data.username}. Acceso concedido al panel de administración.`, 'sys');
-        } else {
-            if (errorMsgEl) errorMsgEl.textContent = data.error || 'Credenciales incorrectas';
-        }
-    } catch (err) {
-        if (errorMsgEl) errorMsgEl.textContent = `Error al conectar con el servidor (${getBackendUrl() || '/api'})`;
-    }
-}
-
-// Cerrar sesión
+// Cerrar sesión y redirigir a /login
 export async function logout() {
-    const token = getToken();
-    if (token) {
-        try {
-            await fetch(`${getBackendUrl()}/api/logout`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-        } catch (err) {
-            console.error('Error al notificar logout al servidor:', err);
-        }
-    }
-    clearSession();
+    await logoutApi();
     applyUserPermissions('');
-    checkAuthStatus();
+    redirectToLogin();
 }
 
 // Procesar cambio de contraseña
@@ -173,25 +122,10 @@ export async function handleChangePassword(e) {
         return;
     }
 
-    const token = getToken();
-    if (!token) {
-        if (statusMsg) statusMsg.textContent = 'Sesión no válida. Inicia sesión nuevamente.';
-        return;
-    }
-
     try {
-        const res = await fetch(`${getBackendUrl()}/api/change-password`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ currentPassword, newPassword })
-        });
+        const { ok, data } = await changePasswordApi(currentPassword, newPassword);
 
-        const data = await res.json();
-
-        if (res.ok && data.success) {
+        if (ok && data.success) {
             if (statusMsg) {
                 statusMsg.className = 'auth-msg success';
                 statusMsg.textContent = '✓ Contraseña actualizada correctamente';

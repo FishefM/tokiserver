@@ -1,0 +1,300 @@
+/* Estilos para el Módulo Independiente de Login (/login) */
+
+.login-page-container {
+    position: relative;
+    z-index: 10;
+    min-height: 100vh;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 90px 20px 40px;
+}
+
+.login-card {
+    position: relative;
+    z-index: 2100;
+    width: 100%;
+    max-width: 480px;
+    background: rgba(0, 15, 5, 0.95);
+    border: 2px solid var(--green);
+    box-shadow: 0 0 30px rgba(0, 255, 65, 0.3), inset 0 0 15px rgba(0, 255, 65, 0.1);
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.login-card.desktop-split {
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 30px;
+    padding: 35px;
+}
+
+.login-left-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border-right: 1px dashed var(--green);
+    padding-right: 30px;
+}
+
+.login-right-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 20px;
+}
+
+.login-header {
+    border-bottom: 1px dashed var(--green);
+    padding-bottom: 15px;
+}
+
+.login-title {
+    font-size: 2.2rem;
+    color: var(--green);
+    text-shadow: 0 0 8px var(--green-glow);
+    letter-spacing: 1px;
+}
+
+.login-subtitle {
+    font-size: 1.15rem;
+    opacity: 0.85;
+    margin-top: 5px;
+}
+
+.user-avatar-card-desktop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 16px;
+    width: 100%;
+}
+
+.avatar-carousel-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.btn-avatar-nav {
+    background: transparent;
+    border: none;
+    color: var(--green);
+    font-size: 1.6rem;
+    cursor: pointer;
+    padding: 4px 6px;
+    transition: all 0.2s ease;
+    user-select: none;
+    text-shadow: 0 0 8px var(--green-glow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.8;
+}
+
+.btn-avatar-nav:hover {
+    opacity: 1;
+    color: #ffffff;
+    text-shadow: 0 0 12px var(--green);
+    transform: scale(1.25);
+}
+
+.btn-avatar-nav:active {
+    transform: scale(0.9);
+}
+
+.avatar-frame-large {
+    width: 100%;
+    max-width: 310px;
+    aspect-ratio: 1 / 1;
+    border: 2px solid var(--green);
+    box-shadow: 0 0 25px var(--green-glow), inset 0 0 15px rgba(0, 255, 65, 0.2);
+    overflow: hidden;
+    background: #000;
+}
+
+.user-avatar-img-large {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.user-avatar-img-large.fading {
+    opacity: 0;
+    transform: scale(0.95);
+}
+
+.user-avatar-card-desktop:hover .user-avatar-img-large:not(.fading) {
+    transform: scale(1.04);
+}
+
+.user-avatar-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.user-avatar-role {
+    font-size: 1.4rem;
+    color: var(--green);
+    text-shadow: 0 0 6px var(--green-glow);
+    letter-spacing: 1px;
+}
+
+.user-avatar-status {
+    font-size: 1.05rem;
+    opacity: 0.75;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.input-group label {
+    font-size: 1.2rem;
+    color: var(--green);
+}
+
+.crt-input {
+    background: #000;
+    color: var(--green);
+    border: 1px solid var(--green);
+    padding: 12px 15px;
+    font-size: 1.3rem;
+    outline: none;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.crt-input:focus {
+    border-color: #ffffff;
+    box-shadow: 0 0 12px var(--green-glow);
+    background: rgba(0, 255, 65, 0.05);
+}
+
+.crt-input option {
+    background: #000;
+    color: var(--green);
+}
+
+#login-password {
+    font-size: 0.85rem;
+    letter-spacing: 2px;
+}
+
+.password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.password-input-wrapper .crt-input {
+    padding-right: 50px;
+}
+
+.btn-toggle-pwd {
+    position: absolute;
+    right: 6px;
+    background: transparent;
+    border: none;
+    color: var(--green);
+    font-size: 1.3rem;
+    cursor: pointer;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+    opacity: 0.85;
+    user-select: none;
+}
+
+.btn-toggle-pwd:hover {
+    opacity: 1;
+    transform: scale(1.15);
+}
+
+.auth-msg {
+    min-height: 24px;
+    font-size: 1.2rem;
+    color: var(--red-alert);
+    word-break: break-word;
+}
+
+.auth-msg.success {
+    color: var(--green);
+}
+
+.btn-cmd {
+    background: rgba(0, 255, 65, 0.1);
+    border: 1px solid var(--green);
+    color: var(--green);
+    padding: 12px 20px;
+    font-size: 1.35rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.btn-cmd:hover {
+    background: var(--green);
+    color: #000;
+    box-shadow: 0 0 15px var(--green);
+}
+
+.btn-cmd:hover .pixel-icon-mask {
+    background-color: #000 !important;
+}
+
+.btn-login {
+    width: 100%;
+    margin-top: 10px;
+}
+
+/* Responsivo para versión móvil (pantallas <= 768px) */
+@media (max-width: 768px) {
+    .login-page-container {
+        padding: 80px 15px 30px;
+    }
+
+    .login-card.desktop-split {
+        flex-direction: column;
+        max-width: 480px;
+        padding: 20px;
+        gap: 15px;
+    }
+
+    .login-left-col {
+        border-right: none;
+        border-bottom: 1px dashed var(--green);
+        padding-right: 0;
+        padding-bottom: 15px;
+    }
+
+    .avatar-frame-large {
+        max-width: 160px;
+    }
+}

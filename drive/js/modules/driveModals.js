@@ -1,5 +1,6 @@
 import { getBackendUrl, getCurrentFolderFromUrl } from './driveUtils.js';
 import { renderDriveView, closeActiveCardMenu } from './driveUI.js';
+import { getToken } from '/js/auth.js';
 
 let currentItemTargetName = '';
 
@@ -123,9 +124,13 @@ export function initCreateFolderModal() {
             if (statusText) statusText.textContent = `[ CREANDO CARPETA "${folderName.toUpperCase()}"... ]`;
 
             try {
+                const token = getToken();
                 const res = await fetch(`${getBackendUrl()}/api/drive/create-folder`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                    },
                     body: JSON.stringify({
                         parentFolder: currentFolder,
                         folderName: folderName,
@@ -212,9 +217,13 @@ export function initActionModals() {
             if (statusText) statusText.textContent = `[ RENOMBRANDO "${currentItemTargetName.toUpperCase()}" A "${newName.toUpperCase()}"... ]`;
 
             try {
+                const token = getToken();
                 const res = await fetch(`${getBackendUrl()}/api/drive/rename`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                    },
                     body: JSON.stringify({
                         folder: currentFolder,
                         oldName: currentItemTargetName,
@@ -256,9 +265,13 @@ export function initActionModals() {
             if (statusText) statusText.textContent = `[ ELIMINANDO "${currentItemTargetName.toUpperCase()}"... ]`;
 
             try {
+                const token = getToken();
                 const res = await fetch(`${getBackendUrl()}/api/drive/delete`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                    },
                     body: JSON.stringify({
                         folder: currentFolder,
                         name: currentItemTargetName

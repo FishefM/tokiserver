@@ -1,4 +1,5 @@
 import { formatBytes, getBackendUrl, getCurrentFolderFromUrl } from './driveUtils.js';
+import { getToken } from '/js/auth.js';
 
 let activeDropdownEl = null;
 
@@ -91,7 +92,9 @@ export async function renderDriveView() {
     grid.innerHTML = '<div class="empty-notice">[ CARGANDO CONTENIDO... ]</div>';
 
     try {
-        const res = await fetch(`${getBackendUrl()}/api/drive/list?folder=${encodeURIComponent(currentFolder)}`);
+        const token = getToken();
+        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+        const res = await fetch(`${getBackendUrl()}/api/drive/list?folder=${encodeURIComponent(currentFolder)}`, { headers });
         const data = await res.json();
 
         if (!data.success || !data.items || data.items.length === 0) {

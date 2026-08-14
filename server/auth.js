@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { getUser, saveUserPassword, getSession, saveSession, deleteSession } from './db.js';
+import { getUser, getUserAsync, saveUserPassword, getSession, saveSession, deleteSession } from './db.js';
 
 function hashPassword(password, salt = null) {
   if (!salt) {
@@ -14,12 +14,12 @@ function verifyPassword(password, salt, expectedHash) {
   return hash === expectedHash;
 }
 
-export function loginUser(usernameInput, passwordInput) {
+export async function loginUser(usernameInput, passwordInput) {
   if (!usernameInput || !passwordInput) {
     return { success: false, error: 'Usuario y contraseña requeridos' };
   }
 
-  const user = getUser(usernameInput);
+  const user = await getUserAsync(usernameInput);
 
   if (!user) {
     return { success: false, error: 'No son adivinanzas w' };
@@ -52,12 +52,12 @@ export function logoutUser(token) {
   return { success: true };
 }
 
-export function changePassword(username, currentPassword, newPassword) {
+export async function changePassword(username, currentPassword, newPassword) {
   if (!newPassword || newPassword.length < 4) {
     return { success: false, error: 'La nueva contraseña debe tener al menos 4 caracteres' };
   }
 
-  const user = getUser(username);
+  const user = await getUserAsync(username);
 
   if (!user) {
     return { success: false, error: 'Usuario no encontrado' };
@@ -69,7 +69,12 @@ export function changePassword(username, currentPassword, newPassword) {
   }
 
   const { salt, hash } = hashPassword(newPassword);
-  saveUserPassword(user.username, salt, hash);
-
-  return { success: true, message: 'Contraseña actualizada con éxito' };
+  return new Promise((resolve) => {
+    saveUserPassword(user.username, salt, hash, (err) => {
+      if (err) {
+        return resolve({ success: false, error: 'Error al actualizar la contraseña en la base de datos' });
+      }
+      resolve({ success: true, message: 'Contraseña actualizada con éxito' });
+    });
+  });
 }
