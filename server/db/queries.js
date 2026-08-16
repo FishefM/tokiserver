@@ -252,3 +252,214 @@ export function formatAuditLogsForTerminal(limit = 35) {
 
   return output.trim();
 }
+
+// ==========================================
+// CONSULTAS Y OPERACIONES DE DOROCORO AUDIO
+// ==========================================
+
+/**
+ * Sincroniza / Inserta un lote de metadatos de canciones indexadas por trackHash.
+ */
+export function syncDorocoroTracks(username, tracks = []) {
+  return new Promise((resolve, reject) => {
+    if (!tracks || tracks.length === 0) return resolve({ count: 0 });
+    const db = getDbConnection();
+    const now = new Date().toISOString();
+
+    db.serialize(() => {
+      const stmt = db.prepare(`
+        INSERT INTO dorocoro_tracks (
+          trackHash, username, title, artist, album, duration, format, sourceType, webUrl, createdAt, updatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(trackHash, username) DO UPDATE SET
+          duration = coalesce(excluded.duration, dorocoro_tracks.duration),
+          format = coalesce(excluded.format, dorocoro_tracks.format),
+          updatedAt = excluded.updatedAt
+      `);
+
+      for (const t of tracks) {
+        if (!t.trackHash) continue;
+        stmt.run([
+          t.trackHash,
+          username.toLowerCase(),
+          t.title || 'Pista Desconocida',
+          t.artist || username.toUpperCase(),
+          t.album || 'Biblioteca Local',
+          t.duration || '--:--',
+          t.format || 'AUDIO',
+          t.sourceType || 'local',
+          t.webUrl || null,
+          now,
+          now
+        ]);
+      }
+
+      stmt.finalize((err) => {
+        if (err) return reject(err);
+        resolve({ count: tracks.length });
+      });
+    });
+  });
+}
+
+/**
+ * Actualiza el título, artista y álbum de una pista por su trackHash.
+ */
+export function updateDorocoroTrackMeta(username, trackHash, { title, artist, album }) {
+  return new Promise((resolve, reject) => {
+    const db = getDbConnection();
+    const now = new Date().toISOString();
+
+    db.run(`
+      UPDATE dorocoro_tracks
+      SET title = coalesce(?, title),
+          artist = coalesce(?, artist),
+          album = coalesce(?, album),
+          updatedAt = ?
+      WHERE trackHash = ? AND username = ?
+    `, [title, artist, album, now, trackHash, username.toLowerCase()], function (err) {
+      if (err) return reject(err);
+      resolve({ changes: this.changes });
+    });
+  });
+}
+
+/**
+ * Alterna el estado favorito de una canción.
+ */
+export function toggleDorocoroFavorite(username, trackHash) {
+  return new Promise((resolve, reject) => {
+    const db = getDbConnection();
+    const now = new Date().toISOString();
+
+    db.run(`
+      UPDATE dorocoro_tracks
+      SET isFavorite = CASE WHEN isFavorite = 1 THEN 0 ELSE 1 END,
+          updatedAt = ?
+      WHERE trackHash = ? AND username = ?
+    `, [now, trackHash, username.toLowerCase()], function (err) {
+      if (err) return reject(err);
+      resolve({ changes: this.changes });
+    });
+  });
+}
+
+/**
+ * Obtiene toda la biblioteca de Dorocoro para un usuario (pistas, playlists y canciones asociadas).
+ */
+export function getDorocoroUserData(username) {
+  return new Promise((resolve, reject) => {
+    const db = getDbConnection();
+    const user = username.toLowerCase();
+
+    db.all(`SELECT * FROM dorocoro_tracks WHERE username = ? ORDER BY createdAt DESC`, [user], (err, tracks) => {
+      if (err) return reject(err);
+
+      db.all(`SELECT * FROM dorocoro_playlists WHERE username = ? ORDER BY createdAt ASC`, [user], (err2, playlists) => {
+        if (err2) return reject(err2);
+
+        db.all(`SELECT * FROM dorocoro_playlist_tracks WHERE username = ? ORDER BY position ASC, addedAt ASC`, [user], (err3, playlistTracks) => {
+          if (err3) return reject(err3);
+
+          resolve({
+            tracks: tracks || [],
+            playlists: playlists || [],
+            playlistTracks: playlistTracks || []
+          });
+        });
+      });
+    });
+  });
+}
+
+/**
+ * Crea una nueva lista de reproducción para el usuario.
+ */
+export function createDorocoroPlaylist(username, id, name) {
+  return new Promise((resolve, reject) => {
+    const db = getDbConnection();
+    const now = new Date().toISOString();
+
+    db.run(`
+      INSERT INTO dorocoro_playlists (id, username, name, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?)
+    `, [id, username.toLowerCase(), name.trim(), now, now], function (err) {
+      if (err) return reject(err);
+      resolve({ id, name: name.trim() });
+    });
+  });
+}
+
+/**
+ * Renombra una lista de reproducción.
+ */
+export function renameDorocoroPlaylist(username, id, name) {
+  return new Promise((resolve, reject) => {
+    const db = getDbConnection();
+    const now = new Date().toISOString();
+
+    db.run(`
+      UPDATE dorocoro_playlists
+      SET name = ?, updatedAt = ?
+      WHERE id = ? AND username = ?
+    `, [name.trim(), now, id, username.toLowerCase()], function (err) {
+      if (err) return reject(err);
+      resolve({ changes: this.changes });
+    });
+  });
+}
+
+/**
+ * Elimina una lista de reproducción y sus canciones asociadas.
+ */
+export function deleteDorocoroPlaylist(username, id) {
+  return new Promise((resolve, reject) => {
+    const db = getDbConnection();
+    const user = username.toLowerCase();
+
+    db.serialize(() => {
+      db.run(`DELETE FROM dorocoro_playlist_tracks WHERE playlistId = ? AND username = ?`, [id, user]);
+      db.run(`DELETE FROM dorocoro_playlists WHERE id = ? AND username = ?`, [id, user], function (err) {
+        if (err) return reject(err);
+        resolve({ deleted: true });
+      });
+    });
+  });
+}
+
+/**
+ * Agrega una canción a una lista de reproducción.
+ */
+export function addTrackToDorocoroPlaylist(username, playlistId, trackHash) {
+  return new Promise((resolve, reject) => {
+    const db = getDbConnection();
+    const now = new Date().toISOString();
+    const user = username.toLowerCase();
+
+    db.run(`
+      INSERT OR IGNORE INTO dorocoro_playlist_tracks (playlistId, username, trackHash, position, addedAt)
+      VALUES (?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM dorocoro_playlist_tracks WHERE playlistId = ? AND username = ?), ?)
+    `, [playlistId, user, trackHash, playlistId, user, now], function (err) {
+      if (err) return reject(err);
+      resolve({ added: this.changes > 0 });
+    });
+  });
+}
+
+/**
+ * Quita una canción de una lista de reproducción.
+ */
+export function removeTrackFromDorocoroPlaylist(username, playlistId, trackHash) {
+  return new Promise((resolve, reject) => {
+    const db = getDbConnection();
+    const user = username.toLowerCase();
+
+    db.run(`
+      DELETE FROM dorocoro_playlist_tracks
+      WHERE playlistId = ? AND username = ? AND trackHash = ?
+    `, [playlistId, user, trackHash], function (err) {
+      if (err) return reject(err);
+      resolve({ removed: this.changes > 0 });
+    });
+  });
+}

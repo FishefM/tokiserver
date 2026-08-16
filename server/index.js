@@ -11,6 +11,7 @@ import authRoutes from './routes/authRoutes.js';
 import commandRoutes from './routes/commandRoutes.js';
 import statusRoutes from './routes/statusRoutes.js';
 import driveRoutes from './routes/driveRoutes.js';
+import dorocoroRoutes from './routes/dorocoroRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,8 +29,11 @@ app.set('trust proxy', true);
 app.use(cors());
 app.use(express.json());
 
-// Logger HTTP en consola
+// Logger HTTP en consola (omitiendo peticiones de audio de Dorocoro para mantener la consola y el panel de admin limpios)
 app.use((req, res, next) => {
+  if (req.url.startsWith('/dorocoro') || req.url.startsWith('/api/dorocoro')) {
+    return next();
+  }
   const clientIp = getClientIp(req);
   const time = new Date().toLocaleTimeString();
   console.log(`[${time}] HTTP ${req.method} ${req.url} desde IP: ${clientIp}`);
@@ -39,15 +43,17 @@ app.use((req, res, next) => {
 const DRIVE_ROOT = path.join(htmlRoot, 'drive');
 
 // Enrutadores API (Soporta proxy Nginx con o sin recorte de prefijo /api)
+app.use('/api/dorocoro', dorocoroRoutes);
+app.use('/dorocoro/api', dorocoroRoutes);
 app.use('/api', authRoutes);
 app.use('/api/command', commandRoutes);
 app.use('/api/status', statusRoutes);
 app.use('/api/drive', driveRoutes);
 
-app.use('/', authRoutes);
 app.use('/command', commandRoutes);
 app.use('/status', statusRoutes);
 app.use('/drive', driveRoutes);
+app.use('/', authRoutes);
 
 // Servir archivos del frontend y descargas directas de TokiDrive
 app.use('/drive', express.static(DRIVE_ROOT));

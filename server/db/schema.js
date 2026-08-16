@@ -56,5 +56,53 @@ export function initSchema(db) {
         createdAt TEXT NOT NULL
       );
     `);
+
+    // ==========================================
+    // TABLAS DE DOROCORO AUDIO STATION
+    // ==========================================
+
+    // Tabla de pistas y metadatos de audio por usuario (Indexado por Content Hash SHA-256)
+    db.run(`
+      CREATE TABLE IF NOT EXISTS dorocoro_tracks (
+        trackHash TEXT NOT NULL,
+        username TEXT NOT NULL,
+        title TEXT NOT NULL,
+        artist TEXT NOT NULL,
+        album TEXT,
+        duration TEXT,
+        format TEXT,
+        sourceType TEXT DEFAULT 'local',
+        webUrl TEXT,
+        isFavorite INTEGER DEFAULT 0,
+        playCount INTEGER DEFAULT 0,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT,
+        PRIMARY KEY (trackHash, username)
+      );
+    `);
+
+    // Tabla de listas de reproducción por usuario
+    db.run(`
+      CREATE TABLE IF NOT EXISTS dorocoro_playlists (
+        id TEXT NOT NULL,
+        username TEXT NOT NULL,
+        name TEXT NOT NULL,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT,
+        PRIMARY KEY (id, username)
+      );
+    `);
+
+    // Tabla intermedia para canciones dentro de listas de reproducción
+    db.run(`
+      CREATE TABLE IF NOT EXISTS dorocoro_playlist_tracks (
+        playlistId TEXT NOT NULL,
+        username TEXT NOT NULL,
+        trackHash TEXT NOT NULL,
+        position INTEGER DEFAULT 0,
+        addedAt TEXT NOT NULL,
+        PRIMARY KEY (playlistId, username, trackHash)
+      );
+    `);
   });
 }

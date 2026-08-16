@@ -27,6 +27,13 @@
       "category": "drive",
       "description": "Almacenamiento y servidor de descargas",
       "icon": "folder"
+    },
+    {
+      "name": "Dorocoro",
+      "url": "https://dorocoro.tokiserver.com",
+      "category": "services",
+      "description": "Reproductor de audio y estación musical",
+      "icon": "music"
     }
   ],
   "driveFolders": [
