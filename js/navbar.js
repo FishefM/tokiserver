@@ -59,6 +59,11 @@ async function loadNavbar(activeUrl = '') {
                 if (sub.url.startsWith(':')) {
                     link.href = window.location.protocol + "//" + window.location.hostname + sub.url;
                     link.target = "_blank";
+                    link.rel = "noopener noreferrer";
+                } else if (sub.url.startsWith('http://') || sub.url.startsWith('https://') || sub.url.startsWith('//')) {
+                    link.href = sub.url;
+                    link.target = "_blank";
+                    link.rel = "noopener noreferrer";
                 } else {
                     link.href = sub.url;
                 }

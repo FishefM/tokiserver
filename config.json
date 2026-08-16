@@ -9,14 +9,14 @@
     },
     {
       "name": "Jellyfin",
-      "url": ":8096",
+      "url": "https://jellyfin.tokiserver.com",
       "category": "services",
       "description": "Servidor de streaming multimedia",
       "icon": "movie"
     },
     {
       "name": "Kavita",
-      "url": ":5000",
+      "url": "https://kavita.tokiserver.com",
       "category": "services",
       "description": "Biblioteca de cómics, manga y libros",
       "icon": "book-open"
