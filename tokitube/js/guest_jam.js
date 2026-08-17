@@ -33,8 +33,10 @@ const queueListEl = document.getElementById('guest-queue-list');
 
 export function getBackendUrl() {
     const port = window.location.port;
-    if (port && port !== '80' && port !== '443' && port !== '3000') {
-        return `${window.location.protocol}//${window.location.hostname}:3000`;
+    const hostname = window.location.hostname;
+    // Solo aplicar fallback a :3000 si se ejecuta en localhost con servidor de desarrollo (live-server en 8080 o 5500)
+    if ((hostname === 'localhost' || hostname === '127.0.0.1') && (port === '8080' || port === '5500')) {
+        return `${window.location.protocol}//${hostname}:3000`;
     }
     return '';
 }

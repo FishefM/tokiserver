@@ -28,9 +28,27 @@ export async function getTailscaleDnsName() {
 
 /**
  * Obtiene la URL pública de Tailscale de forma segura y de solo lectura.
+ * Detecta automáticamente si Funnel está activo en el puerto estándar o en :8443 / :10000.
  */
 export async function getTailscalePublicUrl() {
   try {
+    try {
+      const { stdout } = await execAsync('tailscale serve status --json');
+      const data = JSON.parse(stdout);
+      if (data.AllowFunnel) {
+        for (const hostAndPort of Object.keys(data.AllowFunnel)) {
+          if (data.AllowFunnel[hostAndPort]) {
+            return `https://${hostAndPort}`;
+          }
+        }
+      }
+      if (data.Web) {
+        for (const hostAndPort of Object.keys(data.Web)) {
+          return `https://${hostAndPort}`;
+        }
+      }
+    } catch (e) {}
+
     const tsDomain = await getTailscaleDnsName();
     if (tsDomain) {
       return `https://${tsDomain}`;
