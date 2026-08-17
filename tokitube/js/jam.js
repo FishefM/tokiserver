@@ -10,7 +10,7 @@ import {
     appendLog
 } from './state.js';
 import { apiFetch, getBackendUrl } from './api.js';
-import { addTrackToQueue, renderQueue, renderPlaylist } from './playlists.js';
+import { addTrackToQueue, clearQueue, renderQueue, renderPlaylist } from './playlists.js';
 import { generateQRCodeSVG } from './qrcode.js';
 
 let activeJamData = null;
@@ -251,6 +251,7 @@ export async function startJamSessionClient(type = 'tokijam') {
             throw new Error(res.error || 'No se pudo iniciar la sesión JAM');
         }
 
+        clearQueue(true);
         activeJamData = res;
         joinedTokiJamData = null;
         connectHostSSE(res.roomId);
@@ -259,10 +260,9 @@ export async function startJamSessionClient(type = 'tokijam') {
 
         appendLog(`[JAM ACTIVA] Sala: ${res.roomId} (${res.type.toUpperCase()})`);
         appendLog(`[JAM ENLACE] Comparte: ${res.shareUrl}`);
+        appendLog(`[JAM] Cola de reproducción restablecida y vacía para la nueva sesión.`);
 
-        if (currentQueue.length > 0 && typeof currentIndex === 'number' && currentQueue[currentIndex]) {
-            syncJamCurrentPlaying(currentQueue[currentIndex]);
-        }
+        syncJamCurrentPlaying(null);
     } catch (err) {
         console.error('[START JAM ERROR]', err);
         appendLog(`ERROR AL INICIAR JAM: ${err.message}`, true);

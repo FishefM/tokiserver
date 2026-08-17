@@ -103,21 +103,15 @@ export async function startJamSession(hostUsername, type = 'tokijam', baseUrl = 
   let funnelUrl = null;
 
   if (type === 'general') {
-    const isPublicHttps = baseUrl.startsWith('https://') && !baseUrl.includes('localhost') && !baseUrl.includes('127.0.0.1');
-    if (isPublicHttps) {
-      console.log(`[JAM GENERAL] Servidor ya alojado bajo HTTPS publico (${baseUrl}). Usando dominio directo.`);
-      shareUrl = `${baseUrl}/tokitube/jam.html?room=${roomId}`;
+    console.log(`[JAM GENERAL] Activando Tailscale Funnel para acceso publico de invitados...`);
+    const tsHttps = await ensureTailscaleFunnel();
+    if (tsHttps) {
+      funnelUrl = `${tsHttps}/tokitube/jam.html?room=${roomId}`;
+      shareUrl = funnelUrl;
+      console.log(`[JAM GENERAL] Enlace publico de Tailscale Funnel generado: ${shareUrl}`);
     } else {
-      console.log(`[JAM GENERAL] Entorno local/HTTP detectado. Activando Tailscale Funnel...`);
-      const tsHttps = await ensureTailscaleFunnel();
-      if (tsHttps) {
-        funnelUrl = `${tsHttps}/tokitube/jam.html?room=${roomId}`;
-        shareUrl = funnelUrl;
-        console.log(`[JAM GENERAL] Enlace Funnel generado: ${shareUrl}`);
-      } else {
-        shareUrl = `${baseUrl}/tokitube/jam.html?room=${roomId}`;
-        console.warn(`[JAM GENERAL AVISO] Funnel no disponible. Enlace alternativo: ${shareUrl}`);
-      }
+      shareUrl = `${baseUrl}/tokitube/jam.html?room=${roomId}`;
+      console.warn(`[JAM GENERAL AVISO] Tailscale Funnel no disponible en este equipo. Enlace alternativo: ${shareUrl}`);
     }
   } else {
     // TokiJAM para usuarios autenticados

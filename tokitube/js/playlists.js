@@ -406,8 +406,7 @@ export function moveQueueItem(fromIdx, toIdx) {
 /**
  * Vacía completamente la cola de reproducción activa.
  */
-export function clearQueue() {
-    if (currentQueue.length === 0) return;
+export function clearQueue(isSilent = false) {
     setCurrentQueue([]);
     setCurrentIndex(0);
     pauseTrack();
@@ -419,7 +418,7 @@ export function clearQueue() {
     if (dom.progressFill) dom.progressFill.style.width = "0%";
 
     saveQueueToIDB([], 0);
-    appendLog(`[COLA] COLA DE REPRODUCCIÓN VACIADA`);
+    if (!isSilent) appendLog(`[COLA] COLA DE REPRODUCCION VACIADA`);
     renderQueue();
     renderPlaylist(dom.searchInput ? dom.searchInput.value : '');
 }
