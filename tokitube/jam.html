@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TokiTube Jam - Estación de Audio Compartida</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./css/jam_guest.css">
+</head>
+<body>
+    <div class="guest-jam-container">
+        <!-- Encabezado de la Sala -->
+        <header class="guest-header">
+            <div class="guest-brand">
+                <span class="pixel-icon-mask magenta" style="-webkit-mask-image: url('/img/icons/zap.svg'); mask-image: url('/img/icons/zap.svg'); width: 18px; height: 18px; display: inline-block; background-color: var(--magenta-neon);"></span>
+                <span id="jam-room-title">TOKITUBE JAM</span>
+            </div>
+            <button type="button" class="guest-user-pill" id="btn-change-nickname" title="Cambiar tu nombre en la Jam">
+                <span id="guest-nickname-display">Invitado</span> [EDIT]
+            </button>
+        </header>
+
+        <!-- Pista Sonando Actualmente -->
+        <section class="now-playing-card" id="now-playing-section">
+            <div class="card-header-badge">
+                <span id="jam-host-tag">ANFITRIÓN: @YUCEF</span>
+                <div class="mini-eq">
+                    <span></span><span></span><span></span><span></span>
+                </div>
+            </div>
+            <div class="now-playing-body">
+                <img src="/toki.jpeg" id="np-thumbnail" class="now-playing-thumb" alt="Carátula">
+                <div class="now-playing-details">
+                    <div class="now-playing-title" id="np-title">ESPERANDO ANFITRIÓN...</div>
+                    <div class="now-playing-artist" id="np-artist">TokiTube Station</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Buscador de Canciones YouTube/Web -->
+        <section class="guest-search-section">
+            <div class="guest-search-bar">
+                <input type="text" id="guest-search-input" class="guest-search-input" placeholder="BUSCAR EN YOUTUBE..." autocomplete="off">
+                <button type="button" id="btn-guest-search" class="guest-btn-search">BUSCAR</button>
+            </div>
+            
+            <!-- Resultados de Búsqueda -->
+            <div class="guest-results-list" id="guest-results-box" style="display: none;">
+                <!-- Inyectado dinámicamente -->
+            </div>
+        </section>
+
+        <!-- Cola de Reproducción en Vivo de la Jam -->
+        <section class="guest-queue-section">
+            <div class="guest-queue-title">
+                <span>PRÓXIMAS EN LA COLA</span>
+                <span id="guest-queue-count" style="color: var(--magenta-neon);">0 PISTAS</span>
+            </div>
+            <div class="guest-queue-items" id="guest-queue-list">
+                <div style="text-align: center; opacity: 0.6; padding: 10px;">
+                    -- AÚN NO HAY CANCIONES PROGRAMADAS POR INVITADOS --
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Scripts de la Jam de Invitados -->
+    <script type="module" src="./js/guest_jam.js"></script>
+</body>
+</html>

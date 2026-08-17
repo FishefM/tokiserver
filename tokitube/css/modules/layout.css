@@ -97,6 +97,38 @@
     box-shadow: 0 0 8px var(--green-glow);
 }
 
+.win-btn.win-btn-jam {
+    width: auto;
+    padding: 0 7px;
+    gap: 4px;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+    border-color: var(--magenta-neon);
+    color: var(--magenta-neon);
+    background: rgba(255, 0, 127, 0.1);
+}
+
+.win-btn.win-btn-jam:hover {
+    background: var(--magenta-neon);
+    color: #fff;
+    box-shadow: 0 0 10px var(--magenta-glow);
+}
+
+.win-btn.win-btn-jam:hover .pixel-icon-mask {
+    background-color: #fff !important;
+}
+
+.win-btn.win-btn-jam.active {
+    background: var(--magenta-neon);
+    color: #fff;
+    box-shadow: 0 0 10px var(--magenta-glow);
+    animation: pulseJam 2s infinite alternate ease-in-out;
+}
+
+.win-btn.win-btn-jam.active .pixel-icon-mask {
+    background-color: #fff !important;
+}
+
 .win-btn.close:hover {
     background: var(--red-alert);
     border-color: var(--red-alert);

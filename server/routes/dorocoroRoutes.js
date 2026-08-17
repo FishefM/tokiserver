@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import multer from 'multer';
+import QRCode from 'qrcode';
 import { fileURLToPath } from 'url';
 import { verifySession } from '../auth.js';
 import {
@@ -25,6 +26,16 @@ import {
   getTrackAudioPath,
   extractPlaylistFromUrl
 } from '../services/ytDlpService.js';
+import {
+  startJamSession,
+  stopJamSession,
+  getJamInfo,
+  getActiveTokiJams,
+  getJamSessionByHost,
+  subscribeToJamEvents,
+  addTrackToJam,
+  updateJamPlayingTrack
+} from '../services/jamService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -632,6 +643,156 @@ router.delete('/playlists/:id/tracks/:hash', async (req, res) => {
   } catch (err) {
     console.error('[DOROCORO API] Error al quitar de lista:', err);
     res.status(500).json({ success: false, error: 'Error al remover canción de la lista.' });
+  }
+});
+
+// =============================================================================
+// RUTAS DE SESIONES COLABORATIVAS JAM (TOKIJAM & JAM GENERAL)
+// =============================================================================
+
+/**
+ * POST /api/tokitube/jam/start
+ * Inicia una TokiJAM (privada) o Jam General (pública con Tailscale Funnel).
+ */
+router.post('/jam/start', async (req, res) => {
+  try {
+    const { type } = req.body; // 'tokijam' | 'general'
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+    const host = req.headers['x-forwarded-host'] || req.get('host') || 'localhost:3000';
+    const baseUrl = `${protocol}://${host}`;
+
+    const session = await startJamSession(req.user, type || 'tokijam', baseUrl);
+    res.json(session);
+  } catch (err) {
+    console.error('[DOROCORO JAM] Error al iniciar JAM:', err);
+    res.status(500).json({ success: false, error: err.message || 'Error al iniciar sesión JAM' });
+  }
+});
+
+/**
+ * POST /api/tokitube/jam/stop
+ * Detiene la sesión JAM activa del usuario anfitrión.
+ */
+router.post('/jam/stop', async (req, res) => {
+  try {
+    const { roomId } = req.body;
+    if (!roomId) {
+      return res.status(400).json({ success: false, error: 'Se requiere roomId' });
+    }
+    const stopped = await stopJamSession(roomId, req.user);
+    res.json({ success: true, stopped });
+  } catch (err) {
+    console.error('[DOROCORO JAM] Error al detener JAM:', err);
+    res.status(500).json({ success: false, error: 'Error al detener sesión JAM' });
+  }
+});
+
+/**
+ * GET /api/tokitube/jam/status
+ * Obtiene la sesión JAM que el usuario actual tiene activa como anfitrión.
+ */
+router.get('/jam/status', (req, res) => {
+  try {
+    const hostJam = getJamSessionByHost(req.user);
+    res.json({ success: true, jam: hostJam });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Error al consultar estado de Jam' });
+  }
+});
+
+/**
+ * GET /api/tokitube/jam/active-tokijams
+ * Lista todas las TokiJAMs activas en el servidor para usuarios autenticados.
+ */
+router.get('/jam/active-tokijams', (req, res) => {
+  try {
+    const list = getActiveTokiJams();
+    res.json({ success: true, jams: list });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Error al consultar TokiJAMs' });
+  }
+});
+
+/**
+ * GET /api/tokitube/jam/info/:roomId
+ * Obtiene los detalles públicos de una sala JAM.
+ */
+router.get('/jam/info/:roomId', (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const info = getJamInfo(roomId);
+    if (!info) {
+      return res.status(404).json({ success: false, error: 'La sesión JAM no existe o ha finalizado.' });
+    }
+    res.json({ success: true, jam: info });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Error al consultar sala JAM' });
+  }
+});
+
+/**
+ * GET /api/tokitube/jam/events/:roomId
+ * Suscripción SSE (Server-Sent Events) en tiempo real para anfitrión e invitados.
+ */
+router.get('/jam/events/:roomId', (req, res) => {
+  const { roomId } = req.params;
+  subscribeToJamEvents(roomId, req, res);
+});
+
+/**
+ * POST /api/tokitube/jam/queue/:roomId
+ * Agrega una canción a la cola de la sala JAM.
+ */
+router.post('/jam/queue/:roomId', async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { track, senderName, position } = req.body;
+
+    const queued = addTrackToJam(roomId, track, senderName || req.user || 'Invitado', position || 'end');
+    res.json({ success: true, track: queued });
+  } catch (err) {
+    console.error('[DOROCORO JAM QUEUE ERROR]', err);
+    res.status(400).json({ success: false, error: err.message || 'Error al agregar canción a la Jam' });
+  }
+});
+
+/**
+ * POST /api/tokitube/jam/sync-now-playing/:roomId
+ * Sincroniza la pista que el anfitrión está reproduciendo actualmente.
+ */
+router.post('/jam/sync-now-playing/:roomId', (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { currentPlaying } = req.body;
+    updateJamPlayingTrack(roomId, currentPlaying);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Error al sincronizar reproducción' });
+  }
+});
+
+/**
+ * GET /api/tokitube/jam/qr
+ * Genera código QR vectorial SVG estándar mediante la librería qrcode
+ */
+router.get('/jam/qr', async (req, res) => {
+  try {
+    const text = req.query.text || '';
+    if (!text) {
+      return res.status(400).send('Falta parámetro text');
+    }
+    const svg = await QRCode.toString(text, {
+      type: 'svg',
+      margin: 2,
+      color: {
+        dark: '#00ff41',
+        light: '#05070a'
+      }
+    });
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.send(svg);
+  } catch (err) {
+    res.status(500).send('Error al generar QR');
   }
 });
 

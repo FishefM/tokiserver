@@ -574,5 +574,120 @@
     background-color: #000 !important;
 }
 
+/* Menú Emergente de JAM */
+.retro-jam-menu {
+    border-color: var(--magenta-neon) !important;
+    box-shadow: 0 0 16px var(--magenta-glow) !important;
+    min-width: 230px !important;
+}
 
+.retro-jam-menu-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-bottom: 1px solid rgba(255, 0, 127, 0.3);
+    color: var(--magenta-neon);
+    font-size: 1.05rem;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
 
+.retro-jam-menu .retro-queue-menu-item:hover {
+    background: var(--magenta-neon) !important;
+    color: #fff !important;
+    box-shadow: 0 0 10px var(--magenta-glow) !important;
+}
+
+.retro-jam-menu .retro-queue-menu-item:hover .pixel-icon-mask {
+    background-color: #fff !important;
+}
+
+/* Indicador Jam en el LCD Display */
+.tag-badge.jam-active {
+    background: rgba(255, 0, 127, 0.15);
+    border-color: var(--magenta-neon);
+    color: var(--magenta-neon);
+    animation: pulseJam 2s infinite alternate ease-in-out;
+}
+
+.tag-badge.jam-active.flash {
+    animation: flashJam 0.5s 2 ease-in-out;
+}
+
+@keyframes pulseJam {
+    0% { box-shadow: 0 0 2px var(--magenta-glow); }
+    100% { box-shadow: 0 0 8px var(--magenta-glow); }
+}
+
+@keyframes flashJam {
+    0%, 100% { background: rgba(255, 0, 127, 0.15); }
+    50% { background: var(--magenta-neon); color: #fff; }
+}
+
+/* Botón Jam Activo en el Deck */
+.btn-deck-action.jam.active,
+.btn-pl-action.active {
+    border-color: var(--magenta-neon) !important;
+    background: rgba(255, 0, 127, 0.25) !important;
+    color: #fff !important;
+    box-shadow: 0 0 10px var(--magenta-glow) !important;
+}
+
+/* ==========================================================================
+   MODO SESION JAM: ILUMINACION MAGENTA DE COLA Y BOTONES DE ANADIR
+   ========================================================================== */
+.inside-jam-session .btn-track-action.queue,
+.inside-jam-session .btn-web-action.add-to-queue,
+.inside-jam-session #btn-queue-playlist {
+    border-color: var(--magenta-neon) !important;
+    color: var(--magenta-neon) !important;
+    background: rgba(255, 0, 127, 0.15) !important;
+}
+
+.inside-jam-session .btn-track-action.queue .pixel-icon-mask,
+.inside-jam-session .btn-web-action.add-to-queue .pixel-icon-mask,
+.inside-jam-session #btn-queue-playlist .pixel-icon-mask {
+    background-color: var(--magenta-neon) !important;
+    filter: drop-shadow(0 0 4px var(--magenta-glow));
+}
+
+.inside-jam-session .btn-track-action.queue:hover,
+.inside-jam-session .btn-web-action.add-to-queue:hover,
+.inside-jam-session #btn-queue-playlist:hover {
+    background: var(--magenta-neon) !important;
+    color: #fff !important;
+    box-shadow: 0 0 10px var(--magenta-glow) !important;
+}
+
+.inside-jam-session .btn-track-action.queue:hover .pixel-icon-mask,
+.inside-jam-session .btn-web-action.add-to-queue:hover .pixel-icon-mask,
+.inside-jam-session #btn-queue-playlist:hover .pixel-icon-mask {
+    background-color: #fff !important;
+}
+
+/* Pestaña de Cola / TokiJAM */
+.btn-deck-tab.jam-active {
+    border-color: var(--magenta-neon) !important;
+    color: var(--magenta-neon) !important;
+    background: rgba(255, 0, 127, 0.12) !important;
+}
+
+.btn-deck-tab.jam-active .pixel-icon-mask {
+    background-color: var(--magenta-neon) !important;
+    filter: drop-shadow(0 0 4px var(--magenta-glow));
+}
+
+.btn-deck-tab.jam-active.active {
+    background: var(--magenta-neon) !important;
+    color: #fff !important;
+}
+
+.btn-deck-tab.jam-active.active .pixel-icon-mask {
+    background-color: #fff !important;
+}
+
+#queue-view-title-text.magenta {
+    color: var(--magenta-neon) !important;
+    text-shadow: 0 0 10px var(--magenta-glow);
+}

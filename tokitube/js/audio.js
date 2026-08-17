@@ -345,6 +345,8 @@ export function loadTrack(index, autoPlay = false, onTrackLoaded = null) {
     if (onTrackLoaded) onTrackLoaded();
     appendLog(`PISTA SELECCIONADA: [${track.artist}] - ${track.title} [${track.format}]`);
 
+    document.dispatchEvent(new CustomEvent('dorocoro:track-loaded', { detail: { track } }));
+
     saveStateToIDB(dom.folderDisplayTag ? dom.folderDisplayTag.textContent : '', activePlaylistId, currentIndex);
     saveQueueToIDB(currentQueue, currentIndex);
     triggerPrefetchNextTrack();

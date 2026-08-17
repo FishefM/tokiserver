@@ -23,6 +23,7 @@ import { apiFetch, downloadTrackFile } from './api.js';
 import { saveTrackToIDB, deleteTrackFromIDB, saveStateToIDB, saveQueueToIDB } from './storage.js';
 import { loadTrack, playTrack, pauseTrack, nextTrack } from './audio.js';
 import { openEditTrackModal, openAddToPlaylistModal } from './modals.js';
+import { queueTrackToActiveJam, isInsideJam } from './jam.js';
 
 let activeQueueMenuEl = null;
 
@@ -773,8 +774,8 @@ export function renderPlaylist(filter = '') {
             if (!track) return;
 
             if (action === 'queue-menu') {
-                openQueuePopover(btn, (pos) => {
-                    addTrackToQueue(track, pos);
+                openQueuePopover(btn, async (pos) => {
+                    await queueTrackToActiveJam(track, pos);
                 });
             } else if (action === 'fav') {
                 track.isFavorite = !track.isFavorite;

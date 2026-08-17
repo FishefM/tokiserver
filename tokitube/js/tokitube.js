@@ -96,6 +96,17 @@ import {
 } from './modals.js';
 
 import {
+    openJamPopover,
+    closeJamModal,
+    stopJamSessionClient,
+    syncJamCurrentPlaying,
+    getActiveJam,
+    getJoinedTokiJam,
+    queueTrackToActiveJam,
+    checkAndRestoreActiveJam
+} from './jam.js';
+
+import {
     performWebSearch
 } from './search.js';
 
@@ -440,8 +451,23 @@ function setupEventListeners() {
     if (dom.btnQueuePlaylist) {
         dom.btnQueuePlaylist.addEventListener('click', (e) => {
             e.stopPropagation();
-            openQueuePopover(dom.btnQueuePlaylist, (pos) => {
-                queuePlaylist(activePlaylistId, pos);
+            openQueuePopover(dom.btnQueuePlaylist, async (pos) => {
+                const joinedJam = getJoinedTokiJam();
+                if (joinedJam) {
+                    const rawTracks = getTracksForPlaylist(activePlaylistId);
+                    let sentCount = 0;
+                    for (const t of rawTracks) {
+                        if (t.sourceType === 'web' || t.sourceType === 'drive' || Boolean(t.webUrl)) {
+                            await queueTrackToActiveJam(t, pos);
+                            sentCount++;
+                        }
+                    }
+                    if (sentCount === 0) {
+                        alert('[JAM] No se encontraron pistas Web o TokiDrive en esta lista para enviar a la TokiJAM.');
+                    }
+                } else {
+                    queuePlaylist(activePlaylistId, pos);
+                }
             });
         });
     }
@@ -538,10 +564,63 @@ function setupEventListeners() {
         });
     }
 
+    // Modal y Botones de JAM Colaborativa
+    if (dom.btnWinJam) {
+        dom.btnWinJam.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openJamPopover(dom.btnWinJam);
+        });
+    }
+    if (dom.btnDeckJam) {
+        dom.btnDeckJam.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openJamPopover(dom.btnDeckJam);
+        });
+    }
+    if (dom.btnPlJam) {
+        dom.btnPlJam.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openJamPopover(dom.btnPlJam);
+        });
+    }
+    if (dom.btnQueueJam) {
+        dom.btnQueueJam.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openJamPopover(dom.btnQueueJam);
+        });
+    }
+
+    if (dom.btnCloseModalJam) dom.btnCloseModalJam.addEventListener('click', closeJamModal);
+    if (dom.btnCancelModalJam) dom.btnCancelModalJam.addEventListener('click', closeJamModal);
+    if (dom.btnStopActiveJam) dom.btnStopActiveJam.addEventListener('click', stopJamSessionClient);
+
+    if (dom.btnCopyJamUrl) {
+        dom.btnCopyJamUrl.addEventListener('click', () => {
+            const input = document.getElementById('jam-modal-url-input');
+            if (input && input.value) {
+                navigator.clipboard.writeText(input.value).then(() => {
+                    const origText = dom.btnCopyJamUrl.textContent;
+                    dom.btnCopyJamUrl.textContent = '¡COPIADO!';
+                    setTimeout(() => { dom.btnCopyJamUrl.textContent = origText; }, 2000);
+                }).catch(() => {
+                    input.select();
+                    document.execCommand('copy');
+                });
+            }
+        });
+    }
+
     // Eventos Globales Desacoplados de Actualización
     document.addEventListener('dorocoro:playlist-changed', () => {
         renderPlaylistSelectOptions();
         updateDisplayedPlaylist();
+    });
+
+    document.addEventListener('dorocoro:track-loaded', (e) => {
+        const track = e.detail?.track;
+        if (track) {
+            syncJamCurrentPlaying(track);
+        }
     });
 
     document.addEventListener('dorocoro:track-relinked', (e) => {
@@ -772,6 +851,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             updateDisplayedPlaylist();
         }
     });
+
+    // 4. Verificar si existe una Jam activa para restaurar la interfaz en modo Jam
+    checkAndRestoreActiveJam().catch(() => {});
 });
 
 // API Global de TokiTube para scripts externos

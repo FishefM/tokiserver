@@ -179,7 +179,19 @@ export const dom = {
     get relinkTrackContent() { return document.getElementById('relink-track-content'); },
     get btnRelinkSkipNext() { return document.getElementById('btn-relink-skip-next'); },
     get btnCancelModalRelink() { return document.getElementById('btn-cancel-modal-relink'); },
-    get btnCloseModalRelink() { return document.getElementById('btn-close-modal-relink'); }
+    get btnCloseModalRelink() { return document.getElementById('btn-close-modal-relink'); },
+
+    // JAM Colaborativa
+    get btnWinJam() { return document.getElementById('btn-win-jam'); },
+    get btnDeckJam() { return document.getElementById('deck-btn-jam'); },
+    get btnPlJam() { return document.getElementById('btn-pl-jam'); },
+    get btnQueueJam() { return document.getElementById('btn-queue-jam'); },
+    get jamDeckIndicator() { return document.getElementById('jam-deck-indicator'); },
+    get modalJamActive() { return document.getElementById('modal-jam-active'); },
+    get btnCopyJamUrl() { return document.getElementById('btn-copy-jam-url'); },
+    get btnStopActiveJam() { return document.getElementById('btn-stop-active-jam'); },
+    get btnCloseModalJam() { return document.getElementById('btn-close-modal-jam'); },
+    get btnCancelModalJam() { return document.getElementById('btn-cancel-modal-jam'); }
 };
 
 // =============================================================================

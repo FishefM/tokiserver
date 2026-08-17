@@ -107,5 +107,18 @@ export function initSchema(db) {
         PRIMARY KEY (playlistId, username, trackHash)
       );
     `);
+
+    // Tabla de sesiones JAM (TokiJAM y Jam General)
+    db.run(`
+      CREATE TABLE IF NOT EXISTS dorocoro_jams (
+        roomId TEXT PRIMARY KEY,
+        type TEXT NOT NULL,
+        hostUsername TEXT NOT NULL,
+        status TEXT NOT NULL,
+        funnelUrl TEXT,
+        createdAt TEXT NOT NULL,
+        closedAt TEXT
+      );
+    `);
   });
 }

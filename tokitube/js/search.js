@@ -4,6 +4,7 @@ import { saveTrackToIDB } from './storage.js';
 import { openAddToPlaylistModal } from './modals.js';
 import { showLoader, hideLoader } from './utils.js';
 import { addTrackToQueue, openQueuePopover } from './playlists.js';
+import { queueTrackToActiveJam } from './jam.js';
 
 /**
  * Ejecuta una búsqueda de audio en la web a través del backend de TokiServer (yt-dlp).
@@ -139,7 +140,7 @@ export function renderWebSearchResults(results, onTrackSelected) {
                     body: JSON.stringify({ tracks: [trackObj] })
                 }).catch(() => {});
 
-                addTrackToQueue(trackObj, pos);
+                await queueTrackToActiveJam(trackObj, pos);
             });
         });
 

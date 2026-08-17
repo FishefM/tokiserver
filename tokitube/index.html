@@ -62,6 +62,10 @@
                     <span>TOKITUBE.EXE</span>
                 </div>
                 <div class="window-controls">
+                    <button type="button" class="win-btn win-btn-jam" id="btn-win-jam" title="Sesión Colaborativa JAM">
+                        <span class="pixel-icon-mask magenta" style="-webkit-mask-image: url('/img/icons/zap.svg'); mask-image: url('/img/icons/zap.svg'); width: 13px; height: 13px;"></span>
+                        <span>JAM</span>
+                    </button>
                     <button type="button" class="win-btn" id="btn-win-min" title="Minimizar">_</button>
                     <button type="button" class="win-btn" id="btn-win-max" title="Maximizar al 90%">[]</button>
                     <button type="button" class="win-btn close" id="btn-win-close" title="Cerrar">X</button>
@@ -81,6 +85,7 @@
                             <div class="screen-header-info">
                                 <span class="tag-badge" id="track-format-badge">STEREO / FLAC</span>
                                 <span class="tag-badge" id="track-rate-badge">44.1 kHz</span>
+                                <span class="tag-badge jam-active" id="jam-deck-indicator" style="display: none; border-color: var(--magenta-neon); color: var(--magenta-neon);">⚡ JAM</span>
                             </div>
                             
                             <div class="track-meta">
@@ -168,8 +173,8 @@
                                 <span>[BIBLIOTECA]</span>
                             </button>
                             <button type="button" class="btn-deck-tab" id="tab-btn-queue" title="Ver Cola de Reproducción Activa">
-                                <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/notes.svg'); mask-image: url('/img/icons/notes.svg'); width: 14px; height: 14px;"></span>
-                                <span>[COLA (<span id="queue-count-badge">0</span>)]</span>
+                                <span class="pixel-icon-mask" id="tab-queue-icon" style="-webkit-mask-image: url('/img/icons/notes.svg'); mask-image: url('/img/icons/notes.svg'); width: 14px; height: 14px;"></span>
+                                <span id="tab-queue-label">[COLA (<span id="queue-count-badge">0</span>)]</span>
                             </button>
                             <button type="button" class="btn-deck-tab" id="tab-btn-web" title="Buscar y Transmitir Música desde la Web">
                                 <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/search.svg'); mask-image: url('/img/icons/search.svg'); width: 14px; height: 14px;"></span>
@@ -250,9 +255,9 @@
                         <!-- VISTA 2: COLA DE REPRODUCCIÓN (EXCLUSIVAMENTE LOCAL) -->
                         <div class="deck-view-content" id="view-queue" style="display: none;">
                             <div class="playlist-header">
-                                <h3 class="playlist-title">
-                                    <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/playlist.svg'); mask-image: url('/img/icons/playlist.svg'); width: 18px; height: 18px;"></span>
-                                    <span>COLA DE REPRODUCCIÓN</span>
+                                <h3 class="playlist-title" id="queue-view-header-title">
+                                    <span class="pixel-icon-mask" id="queue-view-icon" style="-webkit-mask-image: url('/img/icons/playlist.svg'); mask-image: url('/img/icons/playlist.svg'); width: 18px; height: 18px;"></span>
+                                    <span id="queue-view-title-text">COLA DE REPRODUCCIÓN</span>
                                 </h3>
                                 <span class="playlist-counter-badge" id="queue-tracks-count">0 PISTAS</span>
                             </div>
@@ -424,7 +429,43 @@
         </div>
     </div>
 
-    <!-- 5. Loader Retro Global para Procesamiento / Esperas -->
+    <!-- 5. Modal de Gestión de JAM Activa (TokiJAM & Jam General) -->
+    <div class="retro-modal-backdrop" id="modal-jam-active" style="display: none;">
+        <div class="retro-modal-box" style="max-width: 440px;">
+            <div class="modal-header" style="background: rgba(255, 0, 127, 0.2); border-bottom-color: var(--magenta-neon);">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="pixel-icon-mask magenta" style="-webkit-mask-image: url('/img/icons/zap.svg'); mask-image: url('/img/icons/zap.svg'); width: 16px; height: 16px;"></span>
+                    <span id="jam-modal-title" style="color: var(--magenta-neon);">[JAM ACTIVA]</span>
+                </div>
+                <button type="button" class="modal-close-btn" id="btn-close-modal-jam">&times;</button>
+            </div>
+            <div class="modal-body" style="text-align: center; gap: 12px; display: flex; flex-direction: column;">
+                <p id="jam-modal-type-tag" style="font-size: 1rem; opacity: 0.85; line-height: 1.3;">
+                    PUBLICA (Acceso sin contraseña mediante Tailscale Funnel / Red)
+                </p>
+
+                <!-- Código QR Vectorial -->
+                <div id="jam-modal-qr-box" style="display: flex; justify-content: center; padding: 6px 0;">
+                    <!-- Inyectado por qrcode.js -->
+                </div>
+
+                <!-- Input con enlace para copiar -->
+                <div class="web-direct-url-row" style="margin-top: 4px;">
+                    <input type="text" id="jam-modal-url-input" class="web-direct-url-input" readonly style="font-size: 1rem; text-align: center; cursor: pointer;">
+                    <button type="button" class="btn-web-link" id="btn-copy-jam-url">COPIAR</button>
+                </div>
+
+                <div class="modal-actions" style="margin-top: 10px; justify-content: space-between;">
+                    <button type="button" class="btn-modal danger" id="btn-stop-active-jam" style="border-color: var(--red-alert); color: var(--red-alert);">
+                        [DETENER JAM]
+                    </button>
+                    <button type="button" class="btn-modal cancel" id="btn-cancel-modal-jam">CERRAR</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. Loader Retro Global para Procesamiento / Esperas -->
     <div class="retro-modal-backdrop retro-loader-backdrop" id="retro-global-loader" style="display: none;">
         <div class="retro-modal-box retro-loader-box">
             <div class="modal-header loader-header">
