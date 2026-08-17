@@ -22,7 +22,7 @@
       "icon": "book-open"
     },
     {
-      "name": "Drive",
+      "name": "TokiDrive",
       "url": "/drive",
       "category": "drive",
       "description": "Almacenamiento y servidor de descargas",
