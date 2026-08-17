@@ -51,22 +51,25 @@ body {
     top: 0;
     left: 0;
     width: 100%;
-    background: rgba(5, 5, 5, 0.88);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    height: 56px;
+    background: rgba(5, 5, 5, 0.90);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
     border-bottom: 2px solid var(--green);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 4%;
+    padding: 0 4%;
     z-index: 1000;
     box-shadow: 0 0 20px var(--green-glow);
+    box-sizing: border-box;
 }
 
 .navbar-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    height: 100%;
 }
 
 .navbar-brand {
@@ -78,6 +81,7 @@ body {
     display: inline-flex;
     align-items: center;
     text-shadow: 0 0 10px var(--green-glow);
+    white-space: nowrap;
 }
 
 .navbar-toggle {
@@ -109,7 +113,8 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    white-space: nowrap;
 }
 
 .navbar-links a {
@@ -125,6 +130,7 @@ body {
     display: inline-flex;
     align-items: center;
     letter-spacing: 1px;
+    white-space: nowrap;
 }
 
 .navbar-links a:hover {
@@ -144,12 +150,11 @@ body {
     font-weight: bold;
 }
 
-/* MENÚ HAMBURGUESA EN PANTALLAS MÓVILES (<= 768px) */
-@media (max-width: 768px) {
+/* MENÚ HAMBURGUESA EN PANTALLAS MÓVILES Y TABLETS (<= 992px) */
+@media (max-width: 992px) {
     .navbar {
-        flex-direction: column;
-        align-items: stretch;
-        padding: 10px 15px;
+        padding: 0 15px;
+        height: 56px;
     }
 
     .navbar-header {
@@ -162,18 +167,29 @@ body {
 
     .navbar-links {
         display: none;
-        flex-direction: column;
+        position: fixed;
+        top: 56px;
+        left: 0;
         width: 100%;
-        margin-top: 10px;
-        padding-top: 10px;
-        border-top: 1px dashed var(--green);
-        background: rgba(5, 5, 5, 0.95);
+        max-height: calc(100vh - 56px);
+        overflow-y: auto;
+        background: rgba(5, 7, 10, 0.98);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border-bottom: 2px solid var(--green);
+        border-top: 1px solid rgba(0, 255, 65, 0.3);
+        padding: 15px;
+        flex-direction: column;
+        align-items: stretch;
         gap: 8px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.9);
+        box-sizing: border-box;
+        z-index: 999;
     }
 
     .navbar-links.open {
         display: flex;
-        animation: fadeInDown 0.25s ease forwards;
+        animation: fadeInDown 0.2s ease forwards;
     }
 
     .navbar-links a {
@@ -181,6 +197,7 @@ body {
         justify-content: flex-start;
         padding: 10px 15px;
         font-size: 1.4rem;
+        box-sizing: border-box;
     }
 }
 

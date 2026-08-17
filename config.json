@@ -29,8 +29,8 @@
       "icon": "folder"
     },
     {
-      "name": "Dorocoro",
-      "url": "https://dorocoro.tokiserver.com",
+      "name": "TokiTube",
+      "url": "/tokitube",
       "category": "services",
       "description": "Reproductor de audio y estación musical",
       "icon": "music"

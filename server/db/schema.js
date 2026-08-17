@@ -71,7 +71,7 @@ export function initSchema(db) {
         album TEXT,
         duration TEXT,
         format TEXT,
-        sourceType TEXT DEFAULT 'local',
+        sourceType TEXT DEFAULT 'web',
         webUrl TEXT,
         isFavorite INTEGER DEFAULT 0,
         playCount INTEGER DEFAULT 0,
@@ -80,6 +80,9 @@ export function initSchema(db) {
         PRIMARY KEY (trackHash, username)
       );
     `);
+
+    // Purgar cualquier pista puramente local de la base de datos central SQLite (la música local se queda solo en local)
+    db.run(`DELETE FROM dorocoro_tracks WHERE (sourceType = 'local' OR sourceType IS NULL) AND (webUrl IS NULL OR webUrl = '');`);
 
     // Tabla de listas de reproducción por usuario
     db.run(`

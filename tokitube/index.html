@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOKISERVER - TOKITUBE.EXE</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/global.css">
+    <link rel="stylesheet" href="/tokitube/css/tokitube.css">
+    <script>
+        // Si el usuario no posee token en localStorage, redirigir inmediatamente a /login
+        if (!localStorage.getItem('toki_admin_token')) {
+            const currentPath = window.location.pathname + window.location.search + window.location.hash;
+            window.location.href = '/login?redirect=' + encodeURIComponent(currentPath);
+        }
+
+        // Interceptar y bloquear recargas automáticas enviadas por live-server durante la reproducción
+        (function() {
+            if (typeof window.WebSocket !== 'undefined') {
+                const NativeWebSocket = window.WebSocket;
+                window.WebSocket = function(url, protocols) {
+                    const ws = new NativeWebSocket(url, protocols);
+                    let handler = null;
+                    Object.defineProperty(ws, 'onmessage', {
+                        get: function() { return handler; },
+                        set: function(fn) {
+                            handler = function(event) {
+                                if (event && (event.data === 'reload' || event.data === 'refreshcss')) {
+                                    console.warn('[TOKITUBE] Recarga automática prevenida durante la sesión de audio.');
+                                    return;
+                                }
+                                if (fn) fn.call(this, event);
+                            };
+                        }
+                    });
+                    return ws;
+                };
+                window.WebSocket.prototype = NativeWebSocket.prototype;
+            }
+        })();
+    </script>
+</head>
+<body>
+
+    <!-- Navegación Dinámica Global -->
+    <nav class="navbar" id="dynamic-navbar">
+        <a href="/">HOME</a>
+        <a href="/tokitube" class="active">TOKITUBE</a>
+    </nav>
+
+    <!-- Partículas ASCII Globales -->
+    <div class="particles-container" id="particles"></div>
+
+    <main class="dorocoro-container">
+        <!-- Ventana Retro del Reproductor -->
+        <div class="retro-window">
+            
+            <!-- Barra Superior de la Ventana -->
+            <div class="window-titlebar">
+                <div class="window-title">
+                    <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/music.svg'); mask-image: url('/img/icons/music.svg'); width: 18px; height: 18px;"></span>
+                    <span>TOKITUBE.EXE</span>
+                </div>
+                <div class="window-controls">
+                    <button type="button" class="win-btn" title="Minimizar">_</button>
+                    <button type="button" class="win-btn" title="Maximizar">[]</button>
+                    <button type="button" class="win-btn close" title="Cerrar">X</button>
+                </div>
+            </div>
+
+            <!-- Cuerpo de la Ventana -->
+            <div class="window-body">
+                <!-- Grid Principal: Deck y Playlist -->
+                <div class="player-grid">
+                    
+                    <!-- Columna Izquierda: Reproductor Principal -->
+                    <div class="deck-card">
+                        
+                        <!-- Pantalla Display Retro -->
+                        <div class="player-screen">
+                            <div class="screen-header-info">
+                                <span class="tag-badge" id="track-format-badge">STEREO / FLAC</span>
+                                <span class="tag-badge" id="track-rate-badge">44.1 kHz</span>
+                            </div>
+                            
+                            <div class="track-meta">
+                                <h2 class="track-title" id="current-track-title">CARGANDO PISTA...</h2>
+                                <p class="track-artist" id="current-track-artist">TOKI SOUND ENGINE</p>
+                            </div>
+
+                            <!-- Canvas de Visualizador de Audio en Vivo -->
+                            <div class="visualizer-wrapper">
+                                <canvas class="visualizer-canvas" id="visualizer-canvas"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Acciones de la Pista Actual en Reproducción -->
+                        <div class="deck-track-actions" id="deck-track-actions">
+                            <button type="button" class="btn-deck-action fav" id="deck-btn-fav" title="Marcar como Favorita">
+                                <span class="pixel-icon-mask" id="deck-icon-fav" style="-webkit-mask-image: url('/img/icons/star.svg'); mask-image: url('/img/icons/star.svg'); width: 14px; height: 14px;"></span>
+                                <span>FAVORITO</span>
+                            </button>
+                            <button type="button" class="btn-deck-action download" id="deck-btn-download" title="Descargar copia / Modo Offline">
+                                <span class="pixel-icon-mask" id="deck-icon-download" style="-webkit-mask-image: url('/img/icons/download.svg'); mask-image: url('/img/icons/download.svg'); width: 14px; height: 14px;"></span>
+                                <span>DESCARGAR</span>
+                            </button>
+                            <button type="button" class="btn-deck-action" id="deck-btn-add-pl" title="Agregar a Playlist...">
+                                <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/plus.svg'); mask-image: url('/img/icons/plus.svg'); width: 14px; height: 14px;"></span>
+                                <span>LISTA</span>
+                            </button>
+                            <button type="button" class="btn-deck-action" id="deck-btn-edit" title="Editar Metadatos / Vincular">
+                                <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/edit.svg'); mask-image: url('/img/icons/edit.svg'); width: 14px; height: 14px;"></span>
+                                <span>EDITAR</span>
+                            </button>
+                        </div>
+
+                        <!-- Barra de Progreso -->
+                        <div class="progress-container">
+                            <div class="time-row">
+                                <span id="current-time">00:00</span>
+                                <span id="duration-time">--:--</span>
+                            </div>
+                            <div class="progress-bar-wrapper" id="progress-bar">
+                                <div class="progress-bar-inner" id="progress-fill"></div>
+                            </div>
+                        </div>
+
+                        <!-- Controles de Reproducción -->
+                        <div class="controls-deck">
+                            <button type="button" class="ctrl-btn" id="btn-shuffle" title="Modo Aleatorio">
+                                <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/shuffle.svg'); mask-image: url('/img/icons/shuffle.svg'); width: 20px; height: 20px;"></span>
+                            </button>
+
+                            <button type="button" class="ctrl-btn" id="btn-prev" title="Pista Anterior">
+                                <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/skip-back.svg'); mask-image: url('/img/icons/skip-back.svg'); width: 20px; height: 20px;"></span>
+                            </button>
+
+                            <button type="button" class="ctrl-btn btn-play" id="btn-play" title="Reproducir / Pausa">
+                                <span class="pixel-icon-mask magenta" id="play-icon" style="-webkit-mask-image: url('/img/icons/play.svg'); mask-image: url('/img/icons/play.svg'); width: 24px; height: 24px;"></span>
+                            </button>
+
+                            <button type="button" class="ctrl-btn" id="btn-next" title="Siguiente Pista">
+                                <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/skip-forward.svg'); mask-image: url('/img/icons/skip-forward.svg'); width: 20px; height: 20px;"></span>
+                            </button>
+
+                            <button type="button" class="ctrl-btn" id="btn-repeat" title="Repetir: Desactivado">
+                                <span class="pixel-icon-mask" id="repeat-icon" style="-webkit-mask-image: url('/img/icons/repeat.svg'); mask-image: url('/img/icons/repeat.svg'); width: 20px; height: 20px;"></span>
+                            </button>
+                        </div>
+
+                        <!-- Controles Adicionales y Volumen -->
+                        <div class="extra-controls">
+                            <div class="volume-control-wrapper">
+                                <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/volume.svg'); mask-image: url('/img/icons/volume.svg'); width: 20px; height: 20px;"></span>
+                                <input type="range" class="volume-slider" id="volume-slider" min="0" max="100" value="80" title="Volumen">
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Columna Derecha: Lista de Reproducción / Playlist y Búsqueda Web -->
+                    <div class="playlist-card" id="playlist-dropzone">
+                        
+                        <!-- Pestañas Superiores de Navegación -->
+                        <div class="deck-view-tabs">
+                            <button type="button" class="btn-deck-tab active" id="tab-btn-local" title="Ver Biblioteca y Listas Locales">
+                                <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/folder.svg'); mask-image: url('/img/icons/folder.svg'); width: 14px; height: 14px;"></span>
+                                <span>[BIBLIOTECA LOCAL]</span>
+                            </button>
+                            <button type="button" class="btn-deck-tab" id="tab-btn-web" title="Buscar y Transmitir Música desde la Web">
+                                <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/search.svg'); mask-image: url('/img/icons/search.svg'); width: 14px; height: 14px;"></span>
+                                <span>[BUSCAR EN LA WEB]</span>
+                            </button>
+                        </div>
+
+                        <!-- VISTA 1: BIBLIOTECA Y LISTAS LOCALES -->
+                        <div class="deck-view-content" id="view-local-playlist">
+                            <div class="playlist-header">
+                                <h3 class="playlist-title">
+                                    <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/notes.svg'); mask-image: url('/img/icons/notes.svg'); width: 18px; height: 18px;"></span>
+                                    <span id="playlist-current-title">BIBLIOTECA LOCAL</span>
+                                </h3>
+                                <span class="playlist-counter-badge" id="tracks-count-badge">0 PISTAS</span>
+                            </div>
+
+                            <!-- Barra de Selección y Gestión de Listas de Reproducción -->
+                            <div class="playlist-selector-bar">
+                                <select id="playlist-select" class="playlist-dropdown" title="Seleccionar Lista de Reproducción">
+                                    <option value="all">[BIBLIOTECA LOCAL] (0)</option>
+                                    <option value="drive">[TOKIDRIVE] (0)</option>
+                                    <option value="favorites">[FAVORITAS] (0)</option>
+                                    <!-- Listas personalizadas inyectadas dinámicamente -->
+                                </select>
+                                <button type="button" class="btn-pl-action" id="btn-new-playlist" title="Crear Nueva Lista de Reproducción">
+                                    <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/plus.svg'); mask-image: url('/img/icons/plus.svg'); width: 14px; height: 14px;"></span>
+                                    <span>LISTA</span>
+                                </button>
+                                <button type="button" class="btn-pl-action danger" id="btn-delete-playlist" title="Eliminar lista seleccionada" style="display: none;">
+                                    <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/trash.svg'); mask-image: url('/img/icons/trash.svg'); width: 14px; height: 14px;"></span>
+                                </button>
+                            </div>
+
+                            <!-- Acciones para Carga de Carpetas y Archivos -->
+                            <div class="folder-actions-bar">
+                                <button type="button" class="btn-folder-action primary" id="btn-open-folder" title="Seleccionar carpeta de música local">
+                                    <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/folder.svg'); mask-image: url('/img/icons/folder.svg'); width: 16px; height: 16px;"></span>
+                                    <span>ABRIR CARPETA</span>
+                                </button>
+                                <button type="button" class="btn-folder-action" id="btn-add-files" title="Agregar archivos de audio sueltos">
+                                    <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/upload.svg'); mask-image: url('/img/icons/upload.svg'); width: 16px; height: 16px;"></span>
+                                    <span>ARCHIVOS</span>
+                                </button>
+                                <button type="button" class="btn-folder-action danger" id="btn-clear-playlist" title="Limpiar lista actual">
+                                    <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/trash.svg'); mask-image: url('/img/icons/trash.svg'); width: 16px; height: 16px;"></span>
+                                </button>
+                            </div>
+
+                            <!-- Inputs de Selección de Carpetas y Archivos Ocultos -->
+                            <input type="file" id="folder-input-hidden" webkitdirectory directory multiple accept="audio/*" style="display: none;">
+                            <input type="file" id="files-input-hidden" multiple accept="audio/*" style="display: none;">
+
+                            <div class="playlist-search-box">
+                                <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/search.svg'); mask-image: url('/img/icons/search.svg'); width: 16px; height: 16px;"></span>
+                                <input type="text" id="playlist-search" class="playlist-search-input" placeholder="FILTRAR COLA ACTUAL...">
+                            </div>
+
+                            <!-- Lista de Pistas y Zona Dropzone -->
+                            <ul class="track-list" id="playlist-items">
+                                <!-- Inyectado dinámicamente -->
+                            </ul>
+
+                            <!-- Hint de Arrastrar y Soltar -->
+                            <div class="drag-hint-box" id="drag-hint">
+                                <span>ARRASTRA UNA CARPETA O ARCHIVOS DE AUDIO AQUÍ</span>
+                            </div>
+                        </div>
+
+                        <!-- VISTA 2: BÚSQUEDA WEB CON YT-DLP -->
+                        <div class="deck-view-content" id="view-web-search" style="display: none;">
+                            <div class="web-search-header">
+                                <div class="web-search-bar">
+                                    <input type="text" id="input-web-search" class="web-search-input" placeholder="BUSCAR PISTA O ARTISTA EN LA WEB..." autocomplete="off">
+                                    <button type="button" class="btn-web-search" id="btn-do-web-search" title="Iniciar búsqueda en la web">
+                                        <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/search.svg'); mask-image: url('/img/icons/search.svg'); width: 16px; height: 16px;"></span>
+                                        <span>BUSCAR</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Estado de Carga / Mensajes -->
+                            <div class="web-status-msg" id="web-search-status">
+                                INGRESA EL NOMBRE DE UNA CANCIÓN O ARTISTA PARA BUSCAR
+                            </div>
+
+                            <!-- Resultados de Búsqueda Web -->
+                            <ul class="web-results-list" id="web-search-results">
+                                <!-- Inyectado dinámicamente -->
+                            </ul>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <!-- Log de Terminal Inferior -->
+                <div class="terminal-footer-log" id="terminal-log-output">
+                    <!-- Logs de eventos del reproductor -->
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Modales Retro de Gestión -->
+    <!-- 1. Modal para Crear / Importar Lista de Reproducción -->
+    <div class="retro-modal-backdrop" id="modal-new-playlist" style="display: none;">
+        <div class="retro-modal-box">
+            <div class="modal-header">
+                <span>[+] NUEVA LISTA DE REPRODUCCIÓN</span>
+                <button type="button" class="modal-close-btn" id="btn-close-modal-pl">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="display: flex; flex-direction: column; gap: 6px; width: 100%; box-sizing: border-box;">
+                    <label for="input-playlist-name" class="modal-label">NOMBRE DE LA PLAYLIST (OPCIONAL):</label>
+                    <input type="text" id="input-playlist-name" class="modal-input" placeholder="Ej: Synthwave 80s, Favoritas..." maxlength="40">
+                </div>
+
+                <div style="border-top: 1px dashed rgba(0, 255, 65, 0.3); margin: 8px 0 4px 0; padding-top: 10px; width: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 6px;">
+                    <label for="input-playlist-import-url" class="modal-label" style="color: var(--magenta-neon);">IMPORTAR DESDE SPOTIFY / YOUTUBE / WEB:</label>
+                    <input type="text" id="input-playlist-import-url" class="modal-input" style="padding: 12px 14px; font-size: 1.25rem; border-color: rgba(255, 0, 127, 0.6);" placeholder="https://open.spotify.com/playlist/... o YouTube playlist...">
+                    <div style="font-size: 0.95rem; color: rgba(0, 255, 65, 0.75); line-height: 1.35; margin-top: 2px;">
+                        Pega una URL de playlist o álbum de Spotify, o lista de YouTube para extraer e integrar todas las pistas automáticamente. Si dejas el nombre en blanco, se usará el título oficial de la lista.
+                    </div>
+                </div>
+
+                <div id="new-pl-import-status" style="display: none; padding: 8px; text-align: center; font-size: 0.95rem; border: 1px solid var(--magenta-neon); background: rgba(255, 0, 127, 0.1); color: #fff;">
+                    PROCESANDO ENLACE CON YT-DLP...
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-modal cancel" id="btn-cancel-modal-pl">CANCELAR</button>
+                    <button type="button" class="btn-modal confirm" id="btn-confirm-modal-pl">CREAR / IMPORTAR</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Modal para Editar Metadatos de Canción -->
+    <div class="retro-modal-backdrop" id="modal-edit-track" style="display: none;">
+        <div class="retro-modal-box">
+            <div class="modal-header">
+                <span>[EDIT] EDITAR ETIQUETAS DE PISTA</span>
+                <button type="button" class="modal-close-btn" id="btn-close-modal-edit">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-track-hash">
+                <label for="edit-track-title" class="modal-label">TÍTULO DE LA CANCIÓN:</label>
+                <input type="text" id="edit-track-title" class="modal-input" placeholder="Título">
+                <label for="edit-track-artist" class="modal-label">ARTISTA / GRUPO:</label>
+                <input type="text" id="edit-track-artist" class="modal-input" placeholder="Artista">
+                <label for="edit-track-album" class="modal-label">ÁLBUM:</label>
+                <input type="text" id="edit-track-album" class="modal-input" placeholder="Álbum">
+                <div class="modal-actions">
+                    <button type="button" class="btn-modal cancel" id="btn-cancel-modal-edit">CANCELAR</button>
+                    <button type="button" class="btn-modal confirm" id="btn-confirm-modal-edit">GUARDAR CAMBIOS</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Modal para Agregar Pista a una Playlist -->
+    <div class="retro-modal-backdrop" id="modal-add-to-playlist" style="display: none;">
+        <div class="retro-modal-box">
+            <div class="modal-header">
+                <span>[+] AGREGAR A PLAYLIST</span>
+                <button type="button" class="modal-close-btn" id="btn-close-modal-add-pl">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="add-to-pl-track-hash">
+                <p id="add-to-pl-track-name" class="modal-track-preview">Pista seleccionada</p>
+                <label class="modal-label">SELECCIONA LA LISTA DESTINO:</label>
+                <div id="add-to-pl-list-options" class="modal-pl-options">
+                    <!-- Opciones inyectadas dinámicamente -->
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-modal cancel" id="btn-cancel-modal-add-pl">CERRAR</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Loader Retro Global para Procesamiento / Esperas -->
+    <div class="retro-modal-backdrop retro-loader-backdrop" id="retro-global-loader" style="display: none;">
+        <div class="retro-modal-box retro-loader-box">
+            <div class="modal-header loader-header">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="pixel-icon-mask magenta" style="-webkit-mask-image: url('/img/icons/zap.svg'); mask-image: url('/img/icons/zap.svg'); width: 16px; height: 16px;"></span>
+                    <span>[ SISTEMA: PROCESANDO ]</span>
+                </div>
+                <span class="loader-pulse-dot"></span>
+            </div>
+            <div class="modal-body loader-body">
+                <div class="retro-loader-visual">
+                    <div class="retro-loader-bars">
+                        <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                    </div>
+                </div>
+                <div class="loader-text-main" id="loader-msg">PROCESANDO OPERACIÓN...</div>
+                <div class="loader-text-sub" id="loader-submsg">ESPERA UN MOMENTO...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts Modulares Globales -->
+    <script src="/js/navbar.js"></script>
+    <script src="/js/particles.js"></script>
+    <script type="module" src="/tokitube/js/tokitube.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            loadNavbar('/tokitube');
+            initParticles();
+        });
+    </script>
+</body>
+</html>

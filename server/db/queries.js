@@ -259,10 +259,18 @@ export function formatAuditLogsForTerminal(limit = 35) {
 
 /**
  * Sincroniza / Inserta un lote de metadatos de canciones indexadas por trackHash.
+ * Regla Estricta: SQLite SOLO almacena pistas con enlace web o de TokiDrive (multi-dispositivo).
+ * Las pistas puramente locales residen exclusivamente en el IndexedDB del cliente.
  */
 export function syncDorocoroTracks(username, tracks = []) {
   return new Promise((resolve, reject) => {
     if (!tracks || tracks.length === 0) return resolve({ count: 0 });
+
+    const remoteTracks = tracks.filter(t => Boolean(t.webUrl) || t.sourceType === 'web' || t.sourceType === 'drive');
+    if (remoteTracks.length === 0) {
+      return resolve({ count: 0 });
+    }
+
     const db = getDbConnection();
     const now = new Date().toISOString();
 
@@ -272,23 +280,28 @@ export function syncDorocoroTracks(username, tracks = []) {
           trackHash, username, title, artist, album, duration, format, sourceType, webUrl, createdAt, updatedAt
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(trackHash, username) DO UPDATE SET
+          title = coalesce(excluded.title, dorocoro_tracks.title),
+          artist = coalesce(excluded.artist, dorocoro_tracks.artist),
+          album = coalesce(excluded.album, dorocoro_tracks.album),
           duration = coalesce(excluded.duration, dorocoro_tracks.duration),
           format = coalesce(excluded.format, dorocoro_tracks.format),
+          sourceType = coalesce(excluded.sourceType, dorocoro_tracks.sourceType),
+          webUrl = coalesce(excluded.webUrl, dorocoro_tracks.webUrl),
           updatedAt = excluded.updatedAt
       `);
 
-      for (const t of tracks) {
+      for (const t of remoteTracks) {
         if (!t.trackHash) continue;
         stmt.run([
           t.trackHash,
           username.toLowerCase(),
           t.title || 'Pista Desconocida',
           t.artist || username.toUpperCase(),
-          t.album || 'Biblioteca Local',
+          t.album || 'Toki Stream',
           t.duration || '--:--',
           t.format || 'AUDIO',
-          t.sourceType || 'local',
-          t.webUrl || null,
+          t.sourceType || 'web',
+          t.webUrl,
           now,
           now
         ]);
@@ -296,7 +309,7 @@ export function syncDorocoroTracks(username, tracks = []) {
 
       stmt.finalize((err) => {
         if (err) return reject(err);
-        resolve({ count: tracks.length });
+        resolve({ count: remoteTracks.length });
       });
     });
   });
@@ -345,26 +358,36 @@ export function toggleDorocoroFavorite(username, trackHash) {
 }
 
 /**
- * Obtiene toda la biblioteca de Dorocoro para un usuario (pistas, playlists y canciones asociadas).
+ * Obtiene toda la biblioteca de Dorocoro para un usuario (pistas remotas/Drive, playlists y canciones asociadas).
+ * Limpia automáticamente cualquier pista web huérfana que no pertenezca a ninguna playlist.
  */
 export function getDorocoroUserData(username) {
   return new Promise((resolve, reject) => {
     const db = getDbConnection();
-    const user = username.toLowerCase();
+    const user = (username || 'admin').toLowerCase();
 
-    db.all(`SELECT * FROM dorocoro_tracks WHERE username = ? ORDER BY createdAt DESC`, [user], (err, tracks) => {
-      if (err) return reject(err);
+    // Limpiar pistas web huérfanas que no están en ninguna playlist ni son de TokiDrive
+    db.run(`
+      DELETE FROM dorocoro_tracks 
+      WHERE username = ? 
+        AND sourceType != 'drive' 
+        AND webUrl NOT LIKE '%/drive%'
+        AND trackHash NOT IN (SELECT trackHash FROM dorocoro_playlist_tracks WHERE username = ?)
+    `, [user, user], () => {
+      db.all(`SELECT * FROM dorocoro_tracks WHERE (username = ? OR ? = 'admin') AND (webUrl IS NOT NULL AND webUrl != '') ORDER BY createdAt DESC`, [user, user], (err, tracks) => {
+        if (err) return reject(err);
 
-      db.all(`SELECT * FROM dorocoro_playlists WHERE username = ? ORDER BY createdAt ASC`, [user], (err2, playlists) => {
-        if (err2) return reject(err2);
+        db.all(`SELECT * FROM dorocoro_playlists WHERE (username = ? OR ? = 'admin') ORDER BY createdAt ASC`, [user, user], (err2, playlists) => {
+          if (err2) return reject(err2);
 
-        db.all(`SELECT * FROM dorocoro_playlist_tracks WHERE username = ? ORDER BY position ASC, addedAt ASC`, [user], (err3, playlistTracks) => {
-          if (err3) return reject(err3);
+          db.all(`SELECT * FROM dorocoro_playlist_tracks WHERE (username = ? OR ? = 'admin') ORDER BY position ASC, addedAt ASC`, [user, user], (err3, playlistTracks) => {
+            if (err3) return reject(err3);
 
-          resolve({
-            tracks: tracks || [],
-            playlists: playlists || [],
-            playlistTracks: playlistTracks || []
+            resolve({
+              tracks: tracks || [],
+              playlists: playlists || [],
+              playlistTracks: playlistTracks || []
+            });
           });
         });
       });
@@ -463,3 +486,101 @@ export function removeTrackFromDorocoroPlaylist(username, playlistId, trackHash)
     });
   });
 }
+
+/**
+ * Elimina una canción completamente de la biblioteca y de todas las listas del usuario.
+ * Permite eliminar por trackHash o por coincidencia de nombre de archivo / URL.
+ */
+export function deleteDorocoroTrack(username, trackHash, filename = '') {
+  return new Promise((resolve, reject) => {
+    const db = getDbConnection();
+    const user = (username || 'admin').toLowerCase();
+
+    db.serialize(() => {
+      if (filename) {
+        const filePattern = `%${filename}%`;
+        db.run(`
+          DELETE FROM dorocoro_playlist_tracks 
+          WHERE username = ? AND trackHash IN (
+            SELECT trackHash FROM dorocoro_tracks WHERE username = ? AND (trackHash = ? OR webUrl LIKE ?)
+          )
+        `, [user, user, trackHash, filePattern]);
+
+        db.run(`
+          DELETE FROM dorocoro_tracks 
+          WHERE username = ? AND (trackHash = ? OR webUrl LIKE ?)
+        `, [user, trackHash, filePattern], function (err) {
+          if (err) return reject(err);
+          resolve({ deleted: this.changes > 0 });
+        });
+      } else {
+        db.run(`DELETE FROM dorocoro_playlist_tracks WHERE username = ? AND trackHash = ?`, [user, trackHash]);
+        db.run(`DELETE FROM dorocoro_tracks WHERE username = ? AND trackHash = ?`, [user, trackHash], function (err) {
+          if (err) return reject(err);
+          resolve({ deleted: this.changes > 0 });
+        });
+      }
+    });
+  });
+}
+
+/**
+ * Purga de SQLite cualquier pista de Drive cuyo archivo físico ya no exista en la carpeta del usuario.
+ */
+export function purgeStaleDriveTracks(username, activeFilenames = []) {
+  return new Promise((resolve) => {
+    const db = getDbConnection();
+    const user = username.toLowerCase();
+
+    db.all(`SELECT trackHash, webUrl FROM dorocoro_tracks WHERE username = ? AND (sourceType = 'drive' OR webUrl LIKE '%/drive%') ORDER BY CASE WHEN trackHash LIKE 'trk_drive_%' THEN 0 ELSE 1 END`, [user], (err, rows) => {
+      if (err || !rows || rows.length === 0) return resolve({ purged: 0 });
+
+      const toDelete = [];
+      const seenUrls = new Set();
+
+      for (const r of rows) {
+        const url = r.webUrl || '';
+        const fname = decodeURIComponent(url.split('/').pop() || '');
+        if (fname && !activeFilenames.includes(fname)) {
+          toDelete.push(r.trackHash);
+        } else if (url) {
+          if (seenUrls.has(url)) {
+            toDelete.push(r.trackHash);
+          } else {
+            seenUrls.add(url);
+          }
+        }
+      }
+
+      if (toDelete.length === 0) return resolve({ purged: 0 });
+
+      db.serialize(() => {
+        const placeholders = toDelete.map(() => '?').join(',');
+        db.run(`DELETE FROM dorocoro_playlist_tracks WHERE username = ? AND trackHash IN (${placeholders})`, [user, ...toDelete]);
+        db.run(`DELETE FROM dorocoro_tracks WHERE username = ? AND trackHash IN (${placeholders})`, [user, ...toDelete], function () {
+          resolve({ purged: toDelete.length });
+        });
+      });
+    });
+  });
+}
+
+/**
+ * Vacía completamente todas las pistas, playlists y asociaciones del usuario en SQLite.
+ */
+export function clearAllDorocoroUserData(username) {
+  return new Promise((resolve, reject) => {
+    const db = getDbConnection();
+    const user = (username || 'admin').toLowerCase();
+
+    db.serialize(() => {
+      db.run(`DELETE FROM dorocoro_playlist_tracks WHERE username = ?`, [user]);
+      db.run(`DELETE FROM dorocoro_playlists WHERE username = ?`, [user]);
+      db.run(`DELETE FROM dorocoro_tracks WHERE username = ?`, [user], function (err) {
+        if (err) return reject(err);
+        resolve({ cleared: true, changes: this.changes });
+      });
+    });
+  });
+}
+

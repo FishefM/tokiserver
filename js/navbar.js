@@ -15,7 +15,7 @@ async function loadNavbar(activeUrl = '') {
         const brand = document.createElement('a');
         brand.href = '/';
         brand.className = 'navbar-brand';
-        brand.innerHTML = `<span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/zap.svg'); mask-image: url('/img/icons/zap.svg'); width: 22px; height: 22px; margin-right: 8px;"></span>TOKISERVER`;
+        brand.innerHTML = `<span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/monkey.svg'); mask-image: url('/img/icons/monkey.svg'); width: 22px; height: 22px; margin-right: 8px;"></span>TOKISERVER`;
         headerDiv.appendChild(brand);
 
         const toggleBtn = document.createElement('button');
