@@ -14,59 +14,29 @@ const activeJams = new Map();
  */
 export async function getTailscaleDnsName() {
   try {
-    console.log('[TAILSCALE DIAGNOSTIC] Consultando estado de Tailscale: tailscale status --json');
     const { stdout } = await execAsync('tailscale status --json');
     const data = JSON.parse(stdout);
     if (data.Self && data.Self.DNSName) {
       const dns = data.Self.DNSName.replace(/\.$/, '');
-      const ips = data.Self.TailscaleIPs ? data.Self.TailscaleIPs.join(', ') : 'N/A';
-      console.log(`[TAILSCALE DIAGNOSTIC] Nodo: ${data.Self.HostName || 'Self'} | DNS: ${dns} | IP: ${ips}`);
       return dns;
-    } else {
-      console.warn('[TAILSCALE DIAGNOSTIC] Nodo Tailscale encontrado pero sin DNSName (MagicDNS podría estar apagado).');
     }
   } catch (err) {
-    console.warn(`[TAILSCALE DIAGNOSTIC] Tailscale CLI no disponible: ${err.message}`);
+    // Tailscale no disponible
   }
   return null;
 }
 
 /**
- * Asegura que Tailscale Funnel esté habilitado en segundo plano para el puerto del servidor.
+ * Obtiene la URL pública de Tailscale de forma segura y de solo lectura.
  */
-export async function ensureTailscaleFunnel() {
-  console.log(`\n==================================================`);
-  console.log(`[JAM PUBLICA] Iniciando diagnostico de Tailscale Funnel para puerto ${PORT}...`);
+export async function getTailscalePublicUrl() {
   try {
     const tsDomain = await getTailscaleDnsName();
-    if (!tsDomain) {
-      console.warn('[JAM PUBLICA DIAGNOSTICO] No se detectó dominio MagicDNS de Tailscale.');
-      console.log(`==================================================\n`);
-      return null;
+    if (tsDomain) {
+      return `https://${tsDomain}`;
     }
-
-    console.log(`[JAM PUBLICA] Ejecutando comando: tailscale funnel --bg ${PORT}`);
-    const { stdout, stderr } = await execAsync(`tailscale funnel --bg ${PORT}`);
-    if (stdout && stdout.trim()) {
-      console.log(`[JAM PUBLICA STDOUT] ${stdout.trim()}`);
-    }
-    if (stderr && stderr.trim()) {
-      console.log(`[JAM PUBLICA STDERR] ${stderr.trim()}`);
-    }
-
-    const funnelHttps = `https://${tsDomain}`;
-    console.log(`[JAM PUBLICA OK] Funnel configurado exitosamente: ${funnelHttps}`);
-    console.log(`==================================================\n`);
-    return funnelHttps;
-  } catch (err) {
-    console.error(`[JAM PUBLICA ERROR] Fallo al ejecutar tailscale funnel: ${err.message}`);
-    if (err.stderr) {
-      console.error(`[JAM PUBLICA STDERR] ${err.stderr.trim()}`);
-    }
-    console.log(`[JAM PUBLICA CONSEJO] Si el error indica permisos, ejecuta 'sudo tailscale set --operator=$USER' y revisa las ACLs de Tailscale.`);
-    console.log(`==================================================\n`);
-    return null;
-  }
+  } catch (err) {}
+  return null;
 }
 
 /**
@@ -103,15 +73,14 @@ export async function startJamSession(hostUsername, type = 'tokijam', baseUrl = 
   let funnelUrl = null;
 
   if (type === 'general') {
-    console.log(`[JAM GENERAL] Activando Tailscale Funnel para acceso publico de invitados...`);
-    const tsHttps = await ensureTailscaleFunnel();
+    const tsHttps = await getTailscalePublicUrl();
     if (tsHttps) {
       funnelUrl = `${tsHttps}/tokitube/jam.html?room=${roomId}`;
       shareUrl = funnelUrl;
-      console.log(`[JAM GENERAL] Enlace publico de Tailscale Funnel generado: ${shareUrl}`);
+      console.log(`[JAM GENERAL] Enlace publico de Tailscale asignado: ${shareUrl}`);
     } else {
       shareUrl = `${baseUrl}/tokitube/jam.html?room=${roomId}`;
-      console.warn(`[JAM GENERAL AVISO] Tailscale Funnel no disponible en este equipo. Enlace alternativo: ${shareUrl}`);
+      console.log(`[JAM GENERAL] Enlace base asignado: ${shareUrl}`);
     }
   } else {
     // TokiJAM para usuarios autenticados
