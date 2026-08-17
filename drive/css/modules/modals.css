@@ -1,0 +1,185 @@
+/* ==================================================
+   DRIVE - FOLDER MODALS & ICON PICKER MODULE
+   ================================================== */
+
+/* Botón y Modal para Crear Nuevas Carpetas */
+.btn-action-folder {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0, 255, 65, 0.12);
+    border: 1px solid var(--green);
+    color: var(--green);
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    text-transform: uppercase;
+    margin-left: auto;
+}
+
+.btn-action-folder:hover {
+    background: var(--green);
+    color: #000;
+    font-weight: bold;
+    box-shadow: 0 0 18px var(--green);
+}
+
+.btn-action-folder:hover .pixel-icon-mask {
+    background-color: #000;
+}
+
+.folder-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(5, 5, 5, 0.88);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: fadeIn 0.25s ease;
+}
+
+.folder-modal-card {
+    background: rgba(0, 15, 8, 0.96);
+    border: 2px solid var(--green);
+    border-radius: 8px;
+    padding: 30px 35px;
+    width: 100%;
+    max-width: 520px;
+    box-shadow: 0 0 35px var(--green-glow);
+}
+
+.folder-modal-title {
+    font-size: 1.8rem;
+    color: var(--green);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    text-shadow: 0 0 10px var(--green-glow);
+}
+
+.folder-modal-subtitle {
+    font-size: 1.1rem;
+    color: var(--green);
+    opacity: 0.85;
+    margin-bottom: 20px;
+}
+
+.folder-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 25px;
+}
+
+.folder-input-group label {
+    font-size: 1.2rem;
+    color: var(--green);
+}
+
+.crt-input {
+    background: rgba(0, 0, 0, 0.85);
+    border: 1px solid var(--green);
+    color: var(--green);
+    padding: 12px 15px;
+    font-size: 1.3rem;
+    border-radius: 4px;
+    outline: none;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.crt-input:focus {
+    border-color: var(--magenta-neon);
+    box-shadow: 0 0 15px var(--magenta-glow);
+    color: #fff;
+}
+
+.folder-modal-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.btn-modal-action {
+    background: rgba(0, 255, 65, 0.12);
+    border: 1px solid var(--green);
+    color: var(--green);
+    padding: 10px 18px;
+    font-size: 1.2rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+}
+
+.btn-modal-action.primary:hover {
+    background: var(--green);
+    color: #000;
+    font-weight: bold;
+    box-shadow: 0 0 18px var(--green);
+}
+
+.btn-modal-action.cancel {
+    border-color: var(--red-alert);
+    color: var(--red-alert);
+    background: rgba(255, 51, 51, 0.1);
+}
+
+.btn-modal-action.cancel:hover {
+    background: var(--red-alert);
+    color: #000;
+    box-shadow: 0 0 18px var(--red-alert);
+}
+
+/* Selector de Íconos Pixel Art */
+.icon-picker-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    background: rgba(0, 0, 0, 0.65);
+    border: 1px solid var(--green);
+    border-radius: 4px;
+    padding: 12px;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.icon-picker-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    background: rgba(0, 255, 65, 0.08);
+    border: 1px solid var(--green);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.icon-picker-item:hover {
+    background: rgba(0, 255, 65, 0.25);
+    box-shadow: 0 0 12px var(--green-glow);
+    transform: scale(1.1);
+}
+
+.icon-picker-item.selected {
+    background: rgba(255, 0, 127, 0.25);
+    border-color: var(--magenta-neon);
+    box-shadow: 0 0 16px var(--magenta-glow);
+}
+
+.icon-picker-item.selected .pixel-icon-mask {
+    background-color: var(--magenta-neon);
+    filter: drop-shadow(0 0 6px var(--magenta-glow));
+}

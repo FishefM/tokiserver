@@ -246,55 +246,149 @@ export function closeAddToPlaylistModal() {
 function renderTargetPlaylistsList(container, track, onTrackLinked) {
     const customPlaylists = userPlaylists.filter(p => p.id !== 'all' && p.id !== 'drive' && p.id !== 'favorites');
 
-    if (customPlaylists.length === 0) {
-        container.innerHTML = `
-            <div style="padding: 10px; text-align: center; opacity: 0.7;">
-                No tienes listas creadas aún. Crea una lista primero con [NUEVA PLAYLIST].
+    container.innerHTML = `
+        <!-- Sección de Creación Rápida de Nueva Playlist -->
+        <div class="modal-inline-create-box">
+            <div class="modal-inline-create-label">CREAR NUEVA PLAYLIST Y AGREGAR ESTA PISTA:</div>
+            <div class="modal-inline-create-row">
+                <input type="text" id="input-modal-inline-new-pl" class="modal-input" placeholder="Nombre de la nueva lista..." maxlength="40">
+                <button type="button" class="btn-pl-action primary" id="btn-modal-inline-create-pl">
+                    <span class="pixel-icon-mask magenta" style="-webkit-mask-image: url('/img/icons/plus.svg'); mask-image: url('/img/icons/plus.svg'); width: 12px; height: 12px;"></span>
+                    <span>CREAR Y AGREGAR</span>
+                </button>
             </div>
-        `;
-        return;
-    }
+            <div id="modal-inline-create-status" style="display: none; font-size: 0.85rem; margin-top: 4px; color: var(--magenta-neon);"></div>
+        </div>
 
-    container.innerHTML = '';
+        <!-- Lista de Playlists Existentes -->
+        <div class="modal-existing-pls-title">TUS PLAYLISTS EXISTENTES:</div>
+        <div class="modal-existing-pls-list">
+            ${customPlaylists.length === 0 ? `
+                <div style="padding: 14px; text-align: center; opacity: 0.7; font-size: 0.95rem;">
+                    No tienes listas creadas aún. Escribe un nombre arriba para crear tu primera lista.
+                </div>
+            ` : ''}
+        </div>
+    `;
 
-    customPlaylists.forEach(pl => {
-        const isAlreadyIn = (pl.trackHashes || []).includes(track.trackHash);
-        const row = document.createElement('div');
-        row.className = 'modal-pl-row';
-        row.innerHTML = `
-            <span>[PLAYLIST] ${pl.name} (${(pl.trackHashes || []).length} pistas)</span>
-            <button type="button" class="btn-pl-action ${isAlreadyIn ? 'danger' : 'primary'}">
-                ${isAlreadyIn ? 'QUITAR' : '+ AGREGAR'}
-            </button>
-        `;
+    // Handler para Crear y Agregar Inline
+    const inlineInput = container.querySelector('#input-modal-inline-new-pl');
+    const inlineBtn = container.querySelector('#btn-modal-inline-create-pl');
+    const inlineStatus = container.querySelector('#modal-inline-create-status');
 
-        row.querySelector('button').addEventListener('click', async () => {
-            const btn = row.querySelector('button');
-            btn.disabled = true;
-            btn.textContent = '...';
+    const handleCreateInline = async () => {
+        const name = (inlineInput.value || '').trim();
+        if (!name) {
+            if (inlineStatus) {
+                inlineStatus.style.display = 'block';
+                inlineStatus.textContent = 'Ingresa un nombre para la nueva playlist.';
+            }
+            if (inlineInput) inlineInput.focus();
+            return;
+        }
 
-            if (isAlreadyIn) {
-                await apiFetch(`/playlists/${pl.id}/tracks/${track.trackHash}`, { method: 'DELETE' });
-                pl.trackHashes = pl.trackHashes.filter(h => h !== track.trackHash);
-                appendLog(`PISTA QUITADA DE [${pl.name}]: ${track.title}`);
-            } else {
-                await apiFetch(`/playlists/${pl.id}/tracks`, {
+        inlineBtn.disabled = true;
+        inlineBtn.textContent = 'CREANDO...';
+
+        const playlistId = 'pl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+        try {
+            // 1. Crear playlist en backend
+            const createRes = await apiFetch('/playlists', {
+                method: 'POST',
+                body: JSON.stringify({ id: playlistId, name })
+            });
+
+            if (createRes.success) {
+                // 2. Agregar pista a la nueva playlist
+                await apiFetch(`/playlists/${playlistId}/tracks`, {
                     method: 'POST',
                     body: JSON.stringify({ trackHash: track.trackHash })
                 });
-                if (!pl.trackHashes.includes(track.trackHash)) {
-                    pl.trackHashes.push(track.trackHash);
+
+                const newPl = {
+                    id: playlistId,
+                    name,
+                    trackHashes: [track.trackHash]
+                };
+
+                setUserPlaylists([...userPlaylists, newPl]);
+                appendLog(`PLAYLIST CREADA Y PISTA AGREGADA: "${name.toUpperCase()}" -> "${track.title}"`);
+                
+                document.dispatchEvent(new CustomEvent('dorocoro:playlist-changed', { detail: { playlistId, track } }));
+                if (onTrackLinked) onTrackLinked(track);
+
+                renderTargetPlaylistsList(container, track, onTrackLinked);
+            } else {
+                if (inlineStatus) {
+                    inlineStatus.style.display = 'block';
+                    inlineStatus.textContent = createRes.error || 'Error al crear la playlist.';
                 }
-                appendLog(`PISTA AGREGADA A [${pl.name}]: ${track.title}`);
+                inlineBtn.disabled = false;
+                inlineBtn.textContent = 'CREAR Y AGREGAR';
             }
+        } catch (err) {
+            console.error('[INLINE CREATE PL ERROR]', err);
+            if (inlineStatus) {
+                inlineStatus.style.display = 'block';
+                inlineStatus.textContent = 'Error de conexión con el servidor.';
+            }
+            inlineBtn.disabled = false;
+            inlineBtn.textContent = 'CREAR Y AGREGAR';
+        }
+    };
 
-            renderTargetPlaylistsList(container, track, onTrackLinked);
-            document.dispatchEvent(new CustomEvent('dorocoro:playlist-changed', { detail: { playlistId: pl.id, track } }));
-            if (onTrackLinked) onTrackLinked(track);
+    if (inlineBtn) inlineBtn.addEventListener('click', handleCreateInline);
+    if (inlineInput) {
+        inlineInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleCreateInline();
+            }
         });
+    }
 
-        container.appendChild(row);
-    });
+    // Renderizar filas de playlists existentes
+    const existingListEl = container.querySelector('.modal-existing-pls-list');
+    if (existingListEl && customPlaylists.length > 0) {
+        customPlaylists.forEach(pl => {
+            const isAlreadyIn = (pl.trackHashes || []).includes(track.trackHash);
+            const row = document.createElement('div');
+            row.className = 'modal-pl-row';
+            row.innerHTML = `
+                <span class="modal-pl-name" title="${pl.name}">[PLAYLIST] ${pl.name} (${(pl.trackHashes || []).length} pistas)</span>
+                <button type="button" class="btn-pl-action ${isAlreadyIn ? 'danger' : 'primary'}">
+                    ${isAlreadyIn ? 'QUITAR' : '+ AGREGAR'}
+                </button>
+            `;
+
+            row.querySelector('button').addEventListener('click', async () => {
+                const btn = row.querySelector('button');
+                btn.disabled = true;
+                btn.textContent = '...';
+
+                if (isAlreadyIn) {
+                    await apiFetch(`/playlists/${pl.id}/tracks/${track.trackHash}`, { method: 'DELETE' });
+                    pl.trackHashes = pl.trackHashes.filter(h => h !== track.trackHash);
+                    appendLog(`PISTA QUITADA DE [${pl.name}]: ${track.title}`);
+                } else {
+                    await apiFetch(`/playlists/${pl.id}/tracks`, {
+                        method: 'POST',
+                        body: JSON.stringify({ trackHash: track.trackHash })
+                    });
+                    if (!pl.trackHashes.includes(track.trackHash)) {
+                        pl.trackHashes.push(track.trackHash);
+                    }
+                    appendLog(`PISTA AGREGADA A [${pl.name}]: ${track.title}`);
+                }
+
+                renderTargetPlaylistsList(container, track, onTrackLinked);
+                document.dispatchEvent(new CustomEvent('dorocoro:playlist-changed', { detail: { playlistId: pl.id, track } }));
+                if (onTrackLinked) onTrackLinked(track);
+            });
+
+            existingListEl.appendChild(row);
+        });
+    }
 }
 
 function getCleanQuery(track) {

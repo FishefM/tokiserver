@@ -213,6 +213,48 @@ export async function loadStateFromIDB() {
 }
 
 /**
+ * Guarda la cola de reproducción activa exclusivamente en IndexedDB local (0 llamadas a backend).
+ */
+export async function saveQueueToIDB(queue, currentIndex) {
+    try {
+        const db = await openDatabase();
+        return new Promise((resolve) => {
+            const tx = db.transaction(STORE_STATE, 'readwrite');
+            const store = tx.objectStore(STORE_STATE);
+            const trackHashes = Array.isArray(queue) ? queue.map(t => t.trackHash) : [];
+            store.put({
+                id: 'tokitube_playback_queue',
+                queueHashes: trackHashes,
+                currentIndex: typeof currentIndex === 'number' ? currentIndex : 0,
+                updatedAt: new Date().toISOString()
+            });
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => resolve();
+        });
+    } catch (err) {
+        console.warn('[IDB SAVE QUEUE ERROR]', err);
+    }
+}
+
+/**
+ * Carga la cola de reproducción guardada localmente en IndexedDB.
+ */
+export async function loadQueueFromIDB() {
+    try {
+        const db = await openDatabase();
+        const tx = db.transaction(STORE_STATE, 'readonly');
+        const store = tx.objectStore(STORE_STATE);
+        const req = store.get('tokitube_playback_queue');
+        return new Promise((resolve) => {
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror = () => resolve(null);
+        });
+    } catch (err) {
+        return null;
+    }
+}
+
+/**
  * Vacía completamente el almacenamiento IndexedDB de este navegador para el usuario actual.
  */
 export async function clearAllLocalDataFromIDB() {
@@ -225,3 +267,4 @@ export async function clearAllLocalDataFromIDB() {
         console.warn('[IDB CLEAR ERROR]', err);
     }
 }
+

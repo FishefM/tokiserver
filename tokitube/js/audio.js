@@ -18,7 +18,7 @@ import {
 } from './state.js';
 import { getTrackSourceState } from './utils.js';
 import { getBackendUrl, apiFetch } from './api.js';
-import { saveStateToIDB } from './storage.js';
+import { saveStateToIDB, saveQueueToIDB } from './storage.js';
 
 let audioCtx = null;
 let analyser = null;
@@ -156,10 +156,7 @@ export function initVisualizer() {
  */
 export function triggerPrefetchNextTrack() {
     if (currentQueue.length <= 1) return;
-    let nextIdx = (currentIndex + 1) % currentQueue.length;
-    if (isShuffle) {
-        nextIdx = (currentIndex + 1) % currentQueue.length;
-    }
+    const nextIdx = (currentIndex + 1) % currentQueue.length;
 
     const nextTrack = currentQueue[nextIdx];
     if (nextTrack && nextTrack.webUrl && (nextTrack.sourceType === 'web' || !nextTrack.sourceType)) {
@@ -171,7 +168,7 @@ export function triggerPrefetchNextTrack() {
             })
         }).then((res) => {
             if (res && res.prefetched) {
-                appendLog(`[PREFETCH] Siguiente pista pre-descargando en disco: "${nextTrack.title}"`);
+                appendLog(`[PREFETCH] Siguiente pista de la cola pre-descargada en disco: "${nextTrack.title}"`);
             }
         }).catch(() => {});
     }
@@ -217,8 +214,8 @@ export function updateDeckTrackActions(track) {
  */
 export function loadTrack(index, autoPlay = false, onTrackLoaded = null) {
     if (currentQueue.length === 0) {
-        if (dom.trackTitle) dom.trackTitle.textContent = "SIN PISTAS DISPONIBLES";
-        if (dom.trackArtist) dom.trackArtist.textContent = "ABRE UNA CARPETA O BUSCA EN LA WEB";
+        if (dom.trackTitle) dom.trackTitle.textContent = "SIN PISTAS EN COLA";
+        if (dom.trackArtist) dom.trackArtist.textContent = "REPRODUCE O AÑADE UNA PLAYLIST A LA COLA";
         if (dom.trackFormat) dom.trackFormat.textContent = "VACÍO";
         if (dom.trackRate) dom.trackRate.textContent = "--";
         if (dom.progressFill) dom.progressFill.style.width = '0%';
@@ -324,6 +321,7 @@ export function loadTrack(index, autoPlay = false, onTrackLoaded = null) {
     appendLog(`PISTA SELECCIONADA: [${track.artist}] - ${track.title} [${track.format}]`);
 
     saveStateToIDB(dom.folderDisplayTag ? dom.folderDisplayTag.textContent : '', activePlaylistId, currentIndex);
+    saveQueueToIDB(currentQueue, currentIndex);
     triggerPrefetchNextTrack();
 }
 
@@ -384,23 +382,15 @@ export function nextTrack(autoEnded = false, onTrackChange = null) {
         return;
     }
 
-    if (isShuffle) {
-        let nextIdx;
-        do {
-            nextIdx = Math.floor(Math.random() * currentQueue.length);
-        } while (nextIdx === currentIndex && currentQueue.length > 1);
-        loadTrack(nextIdx, true, onTrackChange);
+    if (currentIndex < currentQueue.length - 1) {
+        loadTrack(currentIndex + 1, true, onTrackChange);
+    } else if (repeatMode === 'all') {
+        loadTrack(0, true, onTrackChange);
     } else {
-        if (currentIndex < currentQueue.length - 1) {
-            loadTrack(currentIndex + 1, true, onTrackChange);
-        } else if (repeatMode === 'all') {
-            loadTrack(0, true, onTrackChange);
-        } else {
-            pauseTrack();
-            dom.audio.currentTime = 0;
-            if (dom.progressFill) dom.progressFill.style.width = '0%';
-            if (dom.currentTime) dom.currentTime.textContent = '00:00';
-        }
+        pauseTrack();
+        dom.audio.currentTime = 0;
+        if (dom.progressFill) dom.progressFill.style.width = '0%';
+        if (dom.currentTime) dom.currentTime.textContent = '00:00';
     }
 }
 
@@ -411,23 +401,13 @@ export function prevTrack(onTrackChange = null) {
         return;
     }
 
-    if (isShuffle) {
-        const prevIdx = Math.floor(Math.random() * currentQueue.length);
-        loadTrack(prevIdx, true, onTrackChange);
+    if (currentIndex > 0) {
+        loadTrack(currentIndex - 1, true, onTrackChange);
     } else {
-        if (currentIndex > 0) {
-            loadTrack(currentIndex - 1, true, onTrackChange);
-        } else {
-            loadTrack(currentQueue.length - 1, true, onTrackChange);
-        }
+        loadTrack(currentQueue.length - 1, true, onTrackChange);
     }
 }
 
-export function toggleShuffle() {
-    setIsShuffle(!isShuffle);
-    if (dom.shuffleBtn) dom.shuffleBtn.classList.toggle('active', isShuffle);
-    appendLog(`ALEATORIO: ${isShuffle ? 'ACTIVADO' : 'DESACTIVADO'}`);
-}
 
 export function toggleRepeat() {
     if (repeatMode === 'off') {

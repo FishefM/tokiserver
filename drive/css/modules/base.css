@@ -1,0 +1,238 @@
+/* ==================================================
+   DRIVE - BASE, VARIABLES & NAVBAR MODULE
+   ================================================== */
+
+:root {
+    --green: #00ff41;
+    --green-glow: rgba(0, 255, 65, 0.4);
+    --magenta-neon: #ff007f;
+    --magenta-glow: rgba(255, 0, 127, 0.45);
+    --dark-bg: #050505;
+    --panel-bg: rgba(0, 15, 5, 0.75);
+    --red-alert: #ff3333;
+    --yellow-warn: #ffcc00;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'VT323', monospace;
+}
+
+body {
+    background-color: var(--dark-bg);
+    color: var(--green);
+    overflow-x: hidden;
+    overflow-y: auto;
+    min-height: 100vh;
+}
+
+/* Utilities de Íconos Pixel Art Vectoriales */
+.pixel-icon-mask {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    background-color: var(--green);
+    -webkit-mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    filter: drop-shadow(0 0 5px var(--green-glow));
+    vertical-align: middle;
+}
+
+.pixel-icon-mask.magenta {
+    background-color: var(--magenta-neon);
+    filter: drop-shadow(0 0 6px var(--magenta-glow));
+}
+
+/* Navbar Global CSS */
+.navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 56px;
+    background: rgba(5, 5, 5, 0.90);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 2px solid var(--green);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 4%;
+    z-index: 1000;
+    box-shadow: 0 0 20px var(--green-glow);
+    box-sizing: border-box;
+}
+
+.navbar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 100%;
+}
+
+.navbar-brand {
+    font-size: 1.6rem;
+    font-weight: bold;
+    color: var(--green);
+    text-decoration: none;
+    letter-spacing: 2px;
+    display: inline-flex;
+    align-items: center;
+    text-shadow: 0 0 10px var(--green-glow);
+    white-space: nowrap;
+}
+
+.navbar-toggle {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0, 255, 65, 0.1);
+    border: 1px solid var(--green);
+    color: var(--green);
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+}
+
+.navbar-toggle:hover {
+    background: var(--green);
+    color: #000;
+    box-shadow: 0 0 15px var(--green);
+}
+
+.navbar-toggle:hover .pixel-icon-mask {
+    background-color: #000;
+}
+
+.navbar-links {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+}
+
+.navbar-links a {
+    color: var(--green);
+    text-decoration: none;
+    font-size: 1.35rem;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    transition: all 0.25s ease;
+    opacity: 0.85;
+    display: inline-flex;
+    align-items: center;
+    letter-spacing: 1px;
+    white-space: nowrap;
+}
+
+.navbar-links a:hover {
+    border-color: var(--green);
+    background: rgba(0, 255, 65, 0.15);
+    box-shadow: 0 0 15px var(--green-glow);
+    opacity: 1;
+    transform: translateY(-1px);
+}
+
+.navbar-links a.active {
+    border-color: var(--magenta-neon);
+    background: rgba(255, 0, 127, 0.18);
+    color: #fff;
+    box-shadow: 0 0 18px var(--magenta-glow);
+    opacity: 1;
+    font-weight: bold;
+}
+
+/* MENÚ HAMBURGUESA EN PANTALLAS MÓVILES Y TABLETS (<= 992px) */
+@media (max-width: 992px) {
+    .navbar {
+        padding: 0 15px;
+        height: 56px;
+    }
+
+    .navbar-header {
+        width: 100%;
+    }
+
+    .navbar-toggle {
+        display: inline-flex;
+    }
+
+    .navbar-links {
+        display: none;
+        position: fixed;
+        top: 56px;
+        left: 0;
+        width: 100%;
+        max-height: calc(100vh - 56px);
+        overflow-y: auto;
+        background: rgba(5, 7, 10, 0.98);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border-bottom: 2px solid var(--green);
+        border-top: 1px solid rgba(0, 255, 65, 0.3);
+        padding: 15px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.9);
+        box-sizing: border-box;
+        z-index: 999;
+    }
+
+    .navbar-links.open {
+        display: flex;
+        animation: fadeInDown 0.2s ease forwards;
+    }
+
+    .navbar-links a {
+        width: 100%;
+        justify-content: flex-start;
+        padding: 10px 15px;
+        font-size: 1.4rem;
+        box-sizing: border-box;
+    }
+}
+
+@keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Fondo de partículas ASCII Matrix */
+.particles-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2005;
+    pointer-events: none;
+}
+
+.particle {
+    position: absolute;
+    top: -20px;
+    color: var(--green);
+    font-size: 1rem;
+    user-select: none;
+    opacity: 0.7;
+    animation: fall linear forwards;
+}
+
+@keyframes fall {
+    to {
+        transform: translateY(105vh);
+    }
+}

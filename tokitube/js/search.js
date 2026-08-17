@@ -1,9 +1,9 @@
-import { dom, allTracksMap, currentQueue, setCurrentQueue, currentIndex, setCurrentIndex, appendLog } from './state.js';
+import { dom, allTracksMap, appendLog } from './state.js';
 import { apiFetch, getBackendUrl } from './api.js';
 import { saveTrackToIDB } from './storage.js';
-import { loadTrack } from './audio.js';
 import { openAddToPlaylistModal } from './modals.js';
 import { showLoader, hideLoader } from './utils.js';
+import { addTrackToQueue, openQueuePopover } from './playlists.js';
 
 /**
  * Ejecuta una búsqueda de audio en la web a través del backend de TokiServer (yt-dlp).
@@ -68,7 +68,7 @@ export async function performWebSearch(onTrackSelected) {
 }
 
 /**
- * Renderiza la lista de resultados de búsqueda web con opciones de reproducir y agregar a playlist.
+ * Renderiza la lista de resultados de búsqueda web con opciones de reproducir, agregar a cola y a playlist.
  */
 export function renderWebSearchResults(results, onTrackSelected) {
     if (!dom.webSearchResults) return;
@@ -94,8 +94,12 @@ export function renderWebSearchResults(results, onTrackSelected) {
                 </div>
             </div>
             <div class="web-actions-group">
-                <button type="button" class="btn-web-action add-to-pl" data-hash="${item.trackHash}" title="Agregar a una lista de reproducción">
+                <button type="button" class="btn-web-action add-to-queue" data-hash="${item.trackHash}" title="Opciones de Cola de Reproducción...">
                     <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/plus.svg'); mask-image: url('/img/icons/plus.svg'); width: 12px; height: 12px;"></span>
+                    <span>COLA</span>
+                </button>
+                <button type="button" class="btn-web-action add-to-pl" data-hash="${item.trackHash}" title="Agregar a una lista de reproducción">
+                    <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/playlist.svg'); mask-image: url('/img/icons/playlist.svg'); width: 12px; height: 12px;"></span>
                     <span>LISTA</span>
                 </button>
                 <button type="button" class="btn-web-action play-direct" data-hash="${item.trackHash}" title="Reproducir ahora">
@@ -119,6 +123,24 @@ export function renderWebSearchResults(results, onTrackSelected) {
             isLocal: false,
             file: null,
             src: `${getBackendUrl()}/api/tokitube/stream/${item.trackHash}?url=${encodeURIComponent(item.webUrl)}`
+        });
+
+        // Botón + COLA (Menú contextual)
+        row.querySelector('.btn-web-action.add-to-queue').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const btnEl = e.currentTarget;
+            const trackObj = getTrackObj();
+            openQueuePopover(btnEl, async (pos) => {
+                allTracksMap.set(trackObj.trackHash, trackObj);
+                await saveTrackToIDB(trackObj);
+
+                apiFetch('/tracks/sync', {
+                    method: 'POST',
+                    body: JSON.stringify({ tracks: [trackObj] })
+                }).catch(() => {});
+
+                addTrackToQueue(trackObj, pos);
+            });
         });
 
         // Botón + LISTA
@@ -148,17 +170,7 @@ export function renderWebSearchResults(results, onTrackSelected) {
                 body: JSON.stringify({ tracks: [trackObj] })
             }).catch(() => {});
 
-            // Insertar al inicio de la cola actual y reproducir inmediatamente
-            const existingIdx = currentQueue.findIndex(t => t.trackHash === trackObj.trackHash);
-            if (existingIdx !== -1) {
-                setCurrentIndex(existingIdx);
-            } else {
-                setCurrentQueue([trackObj, ...currentQueue]);
-                setCurrentIndex(0);
-            }
-
-            appendLog(`TRANSMITIENDO EN STREAMING WEB: "${trackObj.artist} - ${trackObj.title}"`);
-            loadTrack(currentIndex, true);
+            addTrackToQueue(trackObj, true);
 
             if (onTrackSelected) onTrackSelected(trackObj);
         });

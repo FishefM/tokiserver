@@ -1,0 +1,35 @@
+/* ==================================================
+   ADMIN PANEL - TERMINAL MODULE
+   ================================================== */
+
+/* CRT Terminal Console Box */
+.terminal-box {
+    background: rgba(0, 0, 0, 0.85);
+    border: 1px solid var(--green);
+    padding: 15px;
+    font-size: 1.3rem;
+    line-height: 1.5;
+    min-height: 200px;
+    max-height: 350px;
+    overflow-y: auto;
+    border-left: 4px solid var(--green);
+    box-shadow: inset 0 0 10px rgba(0, 255, 65, 0.1);
+}
+
+.terminal-line {
+    margin-bottom: 4px;
+    word-break: break-all;
+    white-space: pre-wrap;
+}
+
+.terminal-line.out {
+    color: #ffffff;
+}
+
+.terminal-line.err {
+    color: var(--red-alert);
+}
+
+.terminal-line.warn {
+    color: var(--yellow-warn);
+}

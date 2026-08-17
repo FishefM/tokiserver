@@ -1,0 +1,206 @@
+/* ==================================================
+   DRIVE - FILE UPLOAD & DRAG/DROP MODULE
+   ================================================== */
+
+/* Zona de Carga de Archivos (Drag & Drop) */
+.upload-drop-zone {
+    background: rgba(20, 0, 10, 0.65);
+    border: 2px dashed var(--magenta-neon);
+    border-radius: 6px;
+    padding: 25px;
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+    box-shadow: 0 0 15px rgba(255, 0, 127, 0.15);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.upload-drop-zone:hover, .upload-drop-zone.drag-active {
+    background: rgba(40, 0, 20, 0.85);
+    border-color: var(--green);
+    box-shadow: 0 0 25px var(--magenta-glow), 0 0 35px var(--green-glow);
+    transform: translateY(-2px);
+}
+
+.upload-icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    background: rgba(255, 0, 127, 0.15);
+    border: 1px solid var(--magenta-neon);
+    border-radius: 6px;
+    box-shadow: 0 0 12px var(--magenta-glow);
+    flex-shrink: 0;
+}
+
+.upload-text-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex-grow: 1;
+}
+
+.upload-title {
+    font-size: 1.5rem;
+    color: #fff;
+    letter-spacing: 1px;
+    text-shadow: 0 0 8px var(--magenta-glow);
+}
+
+.upload-subtitle {
+    font-size: 1.1rem;
+    color: var(--green);
+    opacity: 0.9;
+}
+
+.btn-upload {
+    background: rgba(255, 0, 127, 0.15);
+    border: 1px solid var(--magenta-neon);
+    color: #fff;
+    padding: 10px 18px;
+    font-size: 1.2rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    text-shadow: 0 0 5px var(--magenta-neon);
+}
+
+.btn-upload:hover {
+    background: var(--magenta-neon);
+    color: #000;
+    font-weight: bold;
+    box-shadow: 0 0 20px var(--magenta-neon);
+}
+
+/* Notificación y Barra de Progreso */
+.upload-status-box {
+    background: rgba(0, 10, 5, 0.9);
+    border: 1px solid var(--green);
+    border-radius: 4px;
+    padding: 15px 20px;
+    margin-bottom: 25px;
+    box-shadow: 0 0 15px var(--green-glow);
+    animation: fadeIn 0.3s ease;
+}
+
+.status-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.status-icon {
+    font-size: 1.4rem;
+}
+
+.status-text {
+    font-size: 1.3rem;
+    color: var(--green);
+    letter-spacing: 1px;
+}
+
+.progress-bar-track {
+    width: 100%;
+    height: 10px;
+    background: rgba(0, 0, 0, 0.8);
+    border: 1px solid var(--green);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, var(--green), var(--magenta-neon));
+    box-shadow: 0 0 10px var(--green);
+    transition: width 0.2s ease;
+}
+
+/* Overlay Fullscreen cuando se arrastra un archivo sobre la ventana */
+.drag-drop-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(5, 5, 10, 0.88);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.drag-drop-overlay.active {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.drag-drop-modal {
+    background: rgba(0, 20, 10, 0.95);
+    border: 3px dashed var(--magenta-neon);
+    border-radius: 12px;
+    padding: 50px 40px;
+    text-align: center;
+    box-shadow: 0 0 50px var(--magenta-glow), 0 0 80px rgba(0, 255, 65, 0.3);
+    max-width: 600px;
+    width: 90%;
+    transform: scale(0.95);
+    transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.drag-drop-overlay.active .drag-drop-modal {
+    transform: scale(1);
+}
+
+.drag-icon-pulse {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 90px;
+    height: 90px;
+    background: rgba(255, 0, 127, 0.15);
+    border: 2px solid var(--magenta-neon);
+    border-radius: 50%;
+    margin-bottom: 20px;
+    box-shadow: 0 0 25px var(--magenta-neon);
+    animation: pulseIcon 1.5s infinite alternate;
+}
+
+@keyframes pulseIcon {
+    from { transform: scale(1); box-shadow: 0 0 15px var(--magenta-neon); }
+    to { transform: scale(1.12); box-shadow: 0 0 35px var(--magenta-neon), 0 0 50px var(--green); }
+}
+
+.drag-drop-modal h2 {
+    font-size: 2.2rem;
+    color: #fff;
+    letter-spacing: 2px;
+    margin-bottom: 12px;
+    text-shadow: 0 0 12px var(--magenta-neon);
+}
+
+.drag-drop-modal p {
+    font-size: 1.4rem;
+    color: var(--green);
+    text-shadow: 0 0 8px var(--green-glow);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}

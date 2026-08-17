@@ -1,0 +1,49 @@
+/* ==================================================
+   DRIVE - RESPONSIVE DESIGN MODULE
+   ================================================== */
+
+@media (max-width: 600px) {
+    .drive-container { 
+        padding: 90px 5% 40px; 
+    }
+    
+    .terminal-banner { 
+        font-size: 1rem; 
+    }
+    
+    .card-title { 
+        font-size: 1.5rem; 
+    }
+    
+    .upload-drop-zone { 
+        flex-direction: column; 
+        text-align: center; 
+    }
+    
+    .btn-upload { 
+        width: 100%; 
+    }
+    
+    .drag-drop-modal h2 { 
+        font-size: 1.6rem; 
+    }
+    
+    .btn-action-folder { 
+        width: auto; 
+        margin-left: auto; 
+        padding: 8px 12px; 
+        font-size: 1.2rem; 
+    }
+    
+    .btn-folder-label { 
+        display: none; 
+    }
+    
+    .folder-modal-actions { 
+        flex-direction: column; 
+    }
+    
+    .btn-modal-action { 
+        width: 100%; 
+    }
+}

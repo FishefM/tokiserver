@@ -62,9 +62,9 @@
                     <span>TOKITUBE.EXE</span>
                 </div>
                 <div class="window-controls">
-                    <button type="button" class="win-btn" title="Minimizar">_</button>
-                    <button type="button" class="win-btn" title="Maximizar">[]</button>
-                    <button type="button" class="win-btn close" title="Cerrar">X</button>
+                    <button type="button" class="win-btn" id="btn-win-min" title="Minimizar">_</button>
+                    <button type="button" class="win-btn" id="btn-win-max" title="Maximizar al 90%">[]</button>
+                    <button type="button" class="win-btn close" id="btn-win-close" title="Cerrar">X</button>
                 </div>
             </div>
 
@@ -127,7 +127,7 @@
 
                         <!-- Controles de Reproducción -->
                         <div class="controls-deck">
-                            <button type="button" class="ctrl-btn" id="btn-shuffle" title="Modo Aleatorio">
+                            <button type="button" class="ctrl-btn" id="btn-shuffle" title="Mezclar Cola de Reproducción">
                                 <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/shuffle.svg'); mask-image: url('/img/icons/shuffle.svg'); width: 20px; height: 20px;"></span>
                             </button>
 
@@ -165,7 +165,11 @@
                         <div class="deck-view-tabs">
                             <button type="button" class="btn-deck-tab active" id="tab-btn-local" title="Ver Biblioteca y Listas Locales">
                                 <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/folder.svg'); mask-image: url('/img/icons/folder.svg'); width: 14px; height: 14px;"></span>
-                                <span>[BIBLIOTECA LOCAL]</span>
+                                <span>[BIBLIOTECA]</span>
+                            </button>
+                            <button type="button" class="btn-deck-tab" id="tab-btn-queue" title="Ver Cola de Reproducción Activa">
+                                <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/notes.svg'); mask-image: url('/img/icons/notes.svg'); width: 14px; height: 14px;"></span>
+                                <span>[COLA (<span id="queue-count-badge">0</span>)]</span>
                             </button>
                             <button type="button" class="btn-deck-tab" id="tab-btn-web" title="Buscar y Transmitir Música desde la Web">
                                 <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/search.svg'); mask-image: url('/img/icons/search.svg'); width: 14px; height: 14px;"></span>
@@ -177,7 +181,7 @@
                         <div class="deck-view-content" id="view-local-playlist">
                             <div class="playlist-header">
                                 <h3 class="playlist-title">
-                                    <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/notes.svg'); mask-image: url('/img/icons/notes.svg'); width: 18px; height: 18px;"></span>
+                                    <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/playlist.svg'); mask-image: url('/img/icons/playlist.svg'); width: 18px; height: 18px;"></span>
                                     <span id="playlist-current-title">BIBLIOTECA LOCAL</span>
                                 </h3>
                                 <span class="playlist-counter-badge" id="tracks-count-badge">0 PISTAS</span>
@@ -191,8 +195,16 @@
                                     <option value="favorites">[FAVORITAS] (0)</option>
                                     <!-- Listas personalizadas inyectadas dinámicamente -->
                                 </select>
+                                <button type="button" class="btn-pl-action primary" id="btn-play-playlist" title="Reproducir toda la playlist en la cola">
+                                    <span class="pixel-icon-mask magenta" style="-webkit-mask-image: url('/img/icons/play.svg'); mask-image: url('/img/icons/play.svg'); width: 13px; height: 13px;"></span>
+                                    <span>PLAY</span>
+                                </button>
+                                <button type="button" class="btn-pl-action" id="btn-queue-playlist" title="Añadir toda la playlist a la cola...">
+                                    <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/plus.svg'); mask-image: url('/img/icons/plus.svg'); width: 13px; height: 13px;"></span>
+                                    <span>COLA</span>
+                                </button>
                                 <button type="button" class="btn-pl-action" id="btn-new-playlist" title="Crear Nueva Lista de Reproducción">
-                                    <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/plus.svg'); mask-image: url('/img/icons/plus.svg'); width: 14px; height: 14px;"></span>
+                                    <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/playlist.svg'); mask-image: url('/img/icons/playlist.svg'); width: 14px; height: 14px;"></span>
                                     <span>LISTA</span>
                                 </button>
                                 <button type="button" class="btn-pl-action danger" id="btn-delete-playlist" title="Eliminar lista seleccionada" style="display: none;">
@@ -221,7 +233,7 @@
 
                             <div class="playlist-search-box">
                                 <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/search.svg'); mask-image: url('/img/icons/search.svg'); width: 16px; height: 16px;"></span>
-                                <input type="text" id="playlist-search" class="playlist-search-input" placeholder="FILTRAR COLA ACTUAL...">
+                                <input type="text" id="playlist-search" class="playlist-search-input" placeholder="FILTRAR LISTA ACTUAL...">
                             </div>
 
                             <!-- Lista de Pistas y Zona Dropzone -->
@@ -235,7 +247,40 @@
                             </div>
                         </div>
 
-                        <!-- VISTA 2: BÚSQUEDA WEB CON YT-DLP -->
+                        <!-- VISTA 2: COLA DE REPRODUCCIÓN (EXCLUSIVAMENTE LOCAL) -->
+                        <div class="deck-view-content" id="view-queue" style="display: none;">
+                            <div class="playlist-header">
+                                <h3 class="playlist-title">
+                                    <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/playlist.svg'); mask-image: url('/img/icons/playlist.svg'); width: 18px; height: 18px;"></span>
+                                    <span>COLA DE REPRODUCCIÓN</span>
+                                </h3>
+                                <span class="playlist-counter-badge" id="queue-tracks-count">0 PISTAS</span>
+                            </div>
+
+                            <!-- Acciones de la Cola -->
+                            <div class="folder-actions-bar">
+                                <button type="button" class="btn-folder-action" id="btn-shuffle-queue" title="Mezclar aleatoriamente las canciones de la cola">
+                                    <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/shuffle.svg'); mask-image: url('/img/icons/shuffle.svg'); width: 16px; height: 16px;"></span>
+                                    <span>MEZCLAR</span>
+                                </button>
+                                <button type="button" class="btn-folder-action danger" id="btn-clear-queue" title="Vaciar toda la cola de reproducción">
+                                    <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/trash.svg'); mask-image: url('/img/icons/trash.svg'); width: 16px; height: 16px;"></span>
+                                    <span>VACIAR COLA</span>
+                                </button>
+                            </div>
+
+                            <div class="playlist-search-box">
+                                <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/search.svg'); mask-image: url('/img/icons/search.svg'); width: 16px; height: 16px;"></span>
+                                <input type="text" id="queue-search" class="playlist-search-input" placeholder="FILTRAR COLA DE REPRODUCCIÓN...">
+                            </div>
+
+                            <!-- Lista de Pistas en Cola -->
+                            <ul class="track-list" id="queue-items">
+                                <!-- Inyectado dinámicamente -->
+                            </ul>
+                        </div>
+
+                        <!-- VISTA 3: BÚSQUEDA WEB CON YT-DLP -->
                         <div class="deck-view-content" id="view-web-search" style="display: none;">
                             <div class="web-search-header">
                                 <div class="web-search-bar">

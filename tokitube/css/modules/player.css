@@ -1,0 +1,356 @@
+/* ==========================================================================
+   TOKITUBE - PLAYER DECK MODULE
+   Display, Visualizer, Track Actions, Progress Bar, Play Controls, Volume
+   ========================================================================== */
+
+/* Panel Principal del Reproductor */
+.deck-card {
+    background: rgba(0, 0, 0, 0.65);
+    border: 1px solid rgba(0, 255, 65, 0.4);
+    padding: clamp(12px, 2.5vw, 18px);
+    display: flex;
+    flex-direction: column;
+    gap: clamp(10px, 2vw, 16px);
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.deck-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--green), transparent);
+}
+
+/* Pantalla del Display */
+.player-screen {
+    background: #020b04;
+    border: 2px solid var(--green);
+    padding: clamp(10px, 2vw, 14px);
+    box-shadow: inset 0 0 15px rgba(0, 255, 65, 0.2);
+    position: relative;
+    overflow: hidden;
+    min-width: 0;
+    width: 100%;
+}
+
+.screen-header-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.95rem;
+    margin-bottom: 6px;
+    border-bottom: 1px dashed rgba(0, 255, 65, 0.3);
+    padding-bottom: 4px;
+    min-width: 0;
+}
+
+.tag-badge {
+    background: rgba(0, 255, 65, 0.15);
+    border: 1px solid var(--green);
+    padding: 1px 6px;
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+    flex-shrink: 0;
+}
+
+.track-meta {
+    margin: 8px 0;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.track-title {
+    font-size: clamp(1.2rem, 4.5vw, 1.85rem);
+    line-height: 1.15;
+    color: var(--green);
+    text-shadow: 0 0 10px var(--green-glow);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    max-width: 100%;
+    min-width: 0;
+}
+
+.track-artist {
+    font-size: clamp(0.95rem, 3.5vw, 1.25rem);
+    color: var(--magenta-neon);
+    text-shadow: 0 0 8px var(--magenta-glow);
+    margin-top: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    max-width: 100%;
+    min-width: 0;
+}
+
+/* Canvas Visualizador */
+.visualizer-wrapper {
+    width: 100%;
+    height: 65px;
+    background: rgba(0, 15, 5, 0.8);
+    border: 1px solid rgba(0, 255, 65, 0.3);
+    margin-top: 8px;
+    position: relative;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.visualizer-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* Barra de Acciones Rápidas de la Pista en el Reproductor Principal */
+.deck-track-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin: 6px 0 4px 0;
+    width: 100%;
+}
+
+.btn-deck-action {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    background: rgba(0, 20, 10, 0.7);
+    border: 1px solid rgba(0, 255, 65, 0.4);
+    color: var(--green);
+    font-family: var(--font-retro);
+    font-size: 1.05rem;
+    letter-spacing: 0.5px;
+    padding: 5px 2px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+}
+
+.btn-deck-action:hover {
+    background: var(--green);
+    color: #000;
+    border-color: var(--green);
+    box-shadow: 0 0 8px rgba(0, 255, 65, 0.4);
+}
+
+.btn-deck-action:hover .pixel-icon-mask {
+    background-color: #000;
+}
+
+.btn-deck-action.fav.active {
+    border-color: var(--gold-accent, #ffd700);
+    color: var(--gold-accent, #ffd700);
+}
+
+.btn-deck-action.fav.active .pixel-icon-mask {
+    background-color: var(--gold-accent, #ffd700);
+}
+
+.btn-deck-action.fav.active:hover {
+    background: var(--gold-accent, #ffd700);
+    color: #000;
+}
+
+.btn-deck-action.fav.active:hover .pixel-icon-mask {
+    background-color: #000;
+}
+
+.btn-deck-action.download.active {
+    border-color: var(--cyan-neon, #00f0ff);
+    color: var(--cyan-neon, #00f0ff);
+}
+
+.btn-deck-action.download.active .pixel-icon-mask {
+    background-color: var(--cyan-neon, #00f0ff);
+}
+
+.btn-deck-action.download.active:hover {
+    background: var(--cyan-neon, #00f0ff);
+    color: #000;
+}
+
+.btn-deck-action.download.active:hover .pixel-icon-mask {
+    background-color: #000;
+}
+
+/* Barra de Progreso y Tiempos */
+.progress-container {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+    width: 100%;
+}
+
+.time-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 1.05rem;
+    color: var(--green);
+}
+
+.progress-bar-wrapper {
+    position: relative;
+    width: 100%;
+    height: 14px;
+    background: #001505;
+    border: 1px solid var(--green);
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.progress-bar-inner {
+    height: 100%;
+    width: 0%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green-glow);
+    transition: width 0.1s linear;
+}
+
+/* Controles de Reproducción */
+.controls-deck {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(6px, 1.8vw, 12px);
+    padding: 4px 0;
+    width: 100%;
+    min-width: 0;
+}
+
+.ctrl-btn {
+    background: rgba(0, 255, 65, 0.1);
+    border: 1px solid var(--green);
+    color: var(--green);
+    padding: 7px clamp(8px, 2.2vw, 14px);
+    font-size: 1.15rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+    user-select: none;
+    min-height: 38px;
+    flex-shrink: 0;
+}
+
+.ctrl-btn:hover {
+    background: var(--green);
+    color: #000;
+    box-shadow: 0 0 12px var(--green-glow);
+}
+
+.ctrl-btn:hover .pixel-icon-mask {
+    background-color: #000 !important;
+    filter: none !important;
+}
+
+.ctrl-btn:active {
+    transform: scale(0.96);
+}
+
+.ctrl-btn.btn-play {
+    padding: 8px clamp(16px, 4vw, 24px);
+    font-size: 1.4rem;
+    background: rgba(255, 0, 127, 0.15);
+    border-color: var(--magenta-neon);
+    color: var(--magenta-neon);
+    box-shadow: 0 0 10px var(--magenta-glow);
+    min-height: 42px;
+}
+
+.ctrl-btn.btn-play:hover {
+    background: var(--magenta-neon);
+    color: #fff;
+    box-shadow: 0 0 18px var(--magenta-glow);
+}
+
+.ctrl-btn.btn-play:hover .pixel-icon-mask {
+    background-color: #fff !important;
+    filter: drop-shadow(0 0 6px var(--magenta-glow));
+}
+
+.ctrl-btn.active {
+    background: var(--green);
+    color: #000;
+    box-shadow: 0 0 12px var(--green-glow);
+}
+
+.ctrl-btn.active .pixel-icon-mask {
+    background-color: #000 !important;
+    filter: none !important;
+}
+
+.ctrl-btn.active-one {
+    background: var(--magenta-neon);
+    border-color: var(--magenta-neon);
+    color: #fff;
+    box-shadow: 0 0 14px var(--magenta-glow);
+}
+
+.ctrl-btn.active-one .pixel-icon-mask {
+    background-color: #fff !important;
+    filter: none !important;
+}
+
+/* Control de Volumen y Opciones Adicionales */
+.extra-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    border-top: 1px dashed rgba(0, 255, 65, 0.25);
+    padding-top: 10px;
+    width: 100%;
+    min-width: 0;
+}
+
+.volume-control-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+}
+
+.volume-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 8px;
+    background: #001808;
+    border: 1px solid var(--green);
+    outline: none;
+    cursor: pointer;
+}
+
+.volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 18px;
+    background: var(--green);
+    cursor: pointer;
+    box-shadow: 0 0 6px var(--green-glow);
+}
+
+.volume-slider::-moz-range-thumb {
+    width: 14px;
+    height: 18px;
+    background: var(--green);
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 0 6px var(--green-glow);
+}

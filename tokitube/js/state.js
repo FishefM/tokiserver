@@ -6,15 +6,16 @@
 // =============================================================================
 // ESTRUCTURAS EN MEMORIA
 // =============================================================================
-export const allTracksMap = new Map(); // trackHash -> Track object
-export let userPlaylists = [];        // Lista de playlists: [{ id, name, trackHashes: [] }]
-export let currentQueue = [];         // Array de canciones actualmente en la lista activa
-export let currentIndex = 0;          // Índice de la pista en reproducción
+export const allTracksMap = new Map();         // trackHash -> Track object
+export let userPlaylists = [];                // Lista de playlists: [{ id, name, trackHashes: [] }]
+export let currentQueue = [];                 // Array de canciones en la cola de reproducción activa
+export let currentIndex = 0;                  // Índice de la pista en reproducción en la cola
+export let displayedPlaylistTracks = [];      // Pistas mostradas actualmente en la pestaña de listas
 export let isPlaying = false;
-export let repeatMode = 'off';        // 'off' | 'all' | 'one'
+export let repeatMode = 'off';                // 'off' | 'all' | 'one'
 export let isShuffle = false;
-export let activePlaylistId = 'all';  // 'all' | 'drive' | 'favorites' | '<playlistId>'
-export let activeTab = 'local';        // 'local' | 'web'
+export let activePlaylistId = 'all';          // 'all' | 'drive' | 'favorites' | '<playlistId>'
+export let activeTab = 'local';                // 'local' | 'queue' | 'web'
 
 // Elemento central HTML5 Audio compartido
 export const audio = new Audio();
@@ -33,6 +34,10 @@ export function setCurrentQueue(queue) {
 
 export function setCurrentIndex(idx) {
     currentIndex = typeof idx === 'number' ? idx : 0;
+}
+
+export function setDisplayedPlaylistTracks(tracks) {
+    displayedPlaylistTracks = Array.isArray(tracks) ? tracks : [];
 }
 
 export function setIsPlaying(val) {
@@ -61,6 +66,10 @@ export function setActiveTab(tab) {
 // REFERENCIAS DINÁMICAS DEL DOM (GETTERS SEGUROS)
 // =============================================================================
 export const dom = {
+    get mainContainer() { return document.querySelector('.dorocoro-container'); },
+    get btnWinMin() { return document.getElementById('btn-win-min'); },
+    get btnWinMax() { return document.getElementById('btn-win-max'); },
+    get btnWinClose() { return document.getElementById('btn-win-close'); },
     get audio() { return audio; },
     get canvas() { return document.getElementById('visualizer-canvas'); },
     get terminalLog() { return document.getElementById('terminal-log-output'); },
@@ -104,7 +113,11 @@ export const dom = {
     get playlistDropzone() { return document.getElementById('playlist-dropzone'); },
     get searchInput() { return document.getElementById('playlist-search'); },
 
-    // Botones de Biblioteca
+    // Botones de Biblioteca y Playlist Actions
+    get btnPlayPlaylist() { return document.getElementById('btn-play-playlist'); },
+    get btnQueuePlaylist() { return document.getElementById('btn-queue-playlist-end') || document.getElementById('btn-queue-playlist'); },
+    get btnQueuePlaylistNext() { return document.getElementById('btn-queue-playlist-next'); },
+    get btnQueuePlaylistEnd() { return document.getElementById('btn-queue-playlist-end'); },
     get btnOpenFolder() { return document.getElementById('btn-open-folder'); },
     get folderInputHidden() { return document.getElementById('folder-input-hidden'); },
     get btnAddFiles() { return document.getElementById('btn-add-files'); },
@@ -113,11 +126,23 @@ export const dom = {
     get btnNewPlaylist() { return document.getElementById('btn-new-playlist'); },
     get btnDeletePlaylist() { return document.getElementById('btn-delete-playlist'); },
 
-    // Pestañas y Búsqueda Web
+    // Pestañas, Cola y Búsqueda Web
     get tabBtnLocal() { return document.getElementById('tab-btn-local'); },
+    get tabBtnQueue() { return document.getElementById('tab-btn-queue'); },
     get tabBtnWeb() { return document.getElementById('tab-btn-web'); },
+    get queueCountBadge() { return document.getElementById('queue-count-badge'); },
     get panelLocal() { return document.getElementById('view-local-playlist'); },
+    get panelQueue() { return document.getElementById('view-queue'); },
     get panelWeb() { return document.getElementById('view-web-search'); },
+    
+    // Elementos de la Cola de Reproducción (Local)
+    get queueTracksCount() { return document.getElementById('queue-tracks-count'); },
+    get queueContainer() { return document.getElementById('queue-items'); },
+    get queueSearchInput() { return document.getElementById('queue-search'); },
+    get btnClearQueue() { return document.getElementById('btn-clear-queue'); },
+    get btnShuffleQueue() { return document.getElementById('btn-shuffle-queue'); },
+
+    // Búsqueda Web
     get inputWebSearch() { return document.getElementById('input-web-search'); },
     get btnDoWebSearch() { return document.getElementById('btn-do-web-search'); },
     get webSearchStatus() { return document.getElementById('web-search-status'); },

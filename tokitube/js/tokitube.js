@@ -1,6 +1,6 @@
 /**
- * dorocoro.js - Entry Point & Orquestador Principal de TokiDorocoro
- * Inicializa los módulos ES6, event listeners, drag & drop y atajos de teclado.
+ * tokitube.js - Entry Point & Orquestador Principal de TokiTube (Dorocoro)
+ * Inicializa los módulos ES6, cola de reproducción local, event listeners, drag & drop y atajos.
  */
 
 import {
@@ -14,6 +14,7 @@ import {
     isShuffle,
     activePlaylistId,
     activeTab,
+    setCurrentQueue,
     setCurrentIndex,
     setActivePlaylistId,
     setActiveTab,
@@ -38,6 +39,8 @@ import {
     loadAllTracksFromIDB,
     saveStateToIDB,
     loadStateFromIDB,
+    saveQueueToIDB,
+    loadQueueFromIDB,
     clearAllLocalDataFromIDB
 } from './storage.js';
 
@@ -58,7 +61,6 @@ import {
     togglePlay,
     nextTrack,
     prevTrack,
-    toggleShuffle,
     toggleRepeat,
     updateRepeatButtonUI,
     setVolume,
@@ -66,10 +68,17 @@ import {
 } from './audio.js';
 
 import {
+    updateDisplayedPlaylist,
     updateCurrentQueue,
     renderPlaylistSelectOptions,
     renderPlaylist,
-    deleteCurrentPlaylist
+    renderQueue,
+    playPlaylist,
+    queuePlaylist,
+    clearQueue,
+    shuffleQueue,
+    deleteCurrentPlaylist,
+    openQueuePopover
 } from './playlists.js';
 
 import {
@@ -157,35 +166,47 @@ async function handleAudioFiles(files, folderName = '', replace = false) {
     await saveStateToIDB(actualFolderName, 'all', 0);
 
     renderPlaylistSelectOptions();
-    updateCurrentQueue();
+    updateDisplayedPlaylist();
 
-    if (currentQueue.length > 0 && !isPlaying) {
-        loadTrack(0, false, () => renderPlaylist(dom.searchInput ? dom.searchInput.value : ''));
+    // Si la cola estaba vacía, inicializar la cola con las pistas locales cargadas
+    if (currentQueue.length === 0) {
+        setCurrentQueue([...processedTracks]);
+        saveQueueToIDB(currentQueue, 0);
+        renderQueue();
+        if (!isPlaying) {
+            loadTrack(0, false, () => renderPlaylist(dom.searchInput ? dom.searchInput.value : ''));
+        }
     }
 
     resolveTracksDurations(processedTracks, (hash, dur) => {
         const track = allTracksMap.get(hash);
         if (track) track.duration = dur;
         renderPlaylist(dom.searchInput ? dom.searchInput.value : '');
+        renderQueue(dom.queueSearchInput ? dom.queueSearchInput.value : '');
     });
 }
 
 // =============================================================================
-// NAVEGACIÓN POR PESTAÑAS (LOCAL vs WEB)
+// NAVEGACIÓN POR PESTAÑAS (LOCAL vs COLA vs WEB)
 // =============================================================================
 function switchViewTab(tab) {
     setActiveTab(tab);
+
+    if (dom.tabBtnLocal) dom.tabBtnLocal.classList.toggle('active', tab === 'local');
+    if (dom.tabBtnQueue) dom.tabBtnQueue.classList.toggle('active', tab === 'queue');
+    if (dom.tabBtnWeb) dom.tabBtnWeb.classList.toggle('active', tab === 'web');
+
+    if (dom.panelLocal) dom.panelLocal.style.display = (tab === 'local') ? 'block' : 'none';
+    if (dom.panelQueue) dom.panelQueue.style.display = (tab === 'queue') ? 'block' : 'none';
+    if (dom.panelWeb) dom.panelWeb.style.display = (tab === 'web') ? 'block' : 'none';
+
     if (tab === 'local') {
-        if (dom.tabBtnLocal) dom.tabBtnLocal.classList.add('active');
-        if (dom.tabBtnWeb) dom.tabBtnWeb.classList.remove('active');
-        if (dom.panelLocal) dom.panelLocal.style.display = 'block';
-        if (dom.panelWeb) dom.panelWeb.style.display = 'none';
         appendLog("VISTA: BIBLIOTECA & LISTAS");
-    } else {
-        if (dom.tabBtnLocal) dom.tabBtnLocal.classList.remove('active');
-        if (dom.tabBtnWeb) dom.tabBtnWeb.classList.add('active');
-        if (dom.panelLocal) dom.panelLocal.style.display = 'none';
-        if (dom.panelWeb) dom.panelWeb.style.display = 'block';
+        renderPlaylist(dom.searchInput ? dom.searchInput.value : '');
+    } else if (tab === 'queue') {
+        appendLog("VISTA: COLA DE REPRODUCCIÓN (LOCAL)");
+        renderQueue(dom.queueSearchInput ? dom.queueSearchInput.value : '');
+    } else if (tab === 'web') {
         appendLog("VISTA: BÚSQUEDA WEB (YT-DLP STREAM)");
         setTimeout(() => {
             if (dom.inputWebSearch) dom.inputWebSearch.focus();
@@ -228,12 +249,18 @@ function setupDragAndDrop() {
 // ASIGNACIÓN DE EVENT LISTENERS
 // =============================================================================
 function setupEventListeners() {
-    // Controles Principales
+    // Controles Principales de Reproducción
     if (dom.playBtn) dom.playBtn.addEventListener('click', togglePlay);
-    if (dom.prevBtn) dom.prevBtn.addEventListener('click', () => prevTrack(() => renderPlaylist(dom.searchInput ? dom.searchInput.value : '')));
-    if (dom.nextBtn) dom.nextBtn.addEventListener('click', () => nextTrack(false, () => renderPlaylist(dom.searchInput ? dom.searchInput.value : '')));
+    if (dom.prevBtn) dom.prevBtn.addEventListener('click', () => prevTrack(() => {
+        renderPlaylist(dom.searchInput ? dom.searchInput.value : '');
+        renderQueue(dom.queueSearchInput ? dom.queueSearchInput.value : '');
+    }));
+    if (dom.nextBtn) dom.nextBtn.addEventListener('click', () => nextTrack(false, () => {
+        renderPlaylist(dom.searchInput ? dom.searchInput.value : '');
+        renderQueue(dom.queueSearchInput ? dom.queueSearchInput.value : '');
+    }));
     if (dom.repeatBtn) dom.repeatBtn.addEventListener('click', toggleRepeat);
-    if (dom.shuffleBtn) dom.shuffleBtn.addEventListener('click', toggleShuffle);
+    if (dom.shuffleBtn) dom.shuffleBtn.addEventListener('click', shuffleQueue);
 
     // Control de Volumen Dual (HTML5 Audio + Web Audio API GainNode)
     if (dom.volumeSlider) {
@@ -265,11 +292,8 @@ function setupEventListeners() {
             appendLog(`FAVORITO [${track.isFavorite ? 'AÑADIDO' : 'REMOVIDO'}]: ${track.title}`);
             updateDeckTrackActions(track);
             renderPlaylistSelectOptions();
-            if (activePlaylistId === 'favorites') {
-                updateCurrentQueue();
-            } else {
-                renderPlaylist(dom.searchInput ? dom.searchInput.value : '');
-            }
+            updateDisplayedPlaylist();
+            renderQueue(dom.queueSearchInput ? dom.queueSearchInput.value : '');
         });
     }
 
@@ -281,7 +305,8 @@ function setupEventListeners() {
             await downloadTrackFile(track, () => {
                 updateDeckTrackActions(track);
                 renderPlaylistSelectOptions();
-                updateCurrentQueue();
+                updateDisplayedPlaylist();
+                renderQueue(dom.queueSearchInput ? dom.queueSearchInput.value : '');
             });
         });
     }
@@ -293,7 +318,7 @@ function setupEventListeners() {
             if (!track) return;
             openAddToPlaylistModal(track, () => {
                 renderPlaylistSelectOptions();
-                renderPlaylist(dom.searchInput ? dom.searchInput.value : '');
+                updateDisplayedPlaylist();
             });
         });
     }
@@ -305,6 +330,7 @@ function setupEventListeners() {
             if (!track) return;
             openEditTrackModal(track, () => {
                 renderPlaylist(dom.searchInput ? dom.searchInput.value : '');
+                renderQueue(dom.queueSearchInput ? dom.queueSearchInput.value : '');
                 if (dom.trackTitle) dom.trackTitle.textContent = track.title;
                 if (dom.trackArtist) dom.trackArtist.textContent = track.artist;
             });
@@ -323,6 +349,8 @@ function setupEventListeners() {
 
         dom.audio.addEventListener('playing', () => {
             if (dom.statusIndicator) dom.statusIndicator.textContent = "PLAYING";
+            renderQueue(dom.queueSearchInput ? dom.queueSearchInput.value : '');
+            renderPlaylist(dom.searchInput ? dom.searchInput.value : '');
         });
 
         dom.audio.addEventListener('waiting', () => {
@@ -334,7 +362,10 @@ function setupEventListeners() {
                 dom.audio.currentTime = 0;
                 playTrack();
             } else {
-                nextTrack(true, () => renderPlaylist(dom.searchInput ? dom.searchInput.value : ''));
+                nextTrack(true, () => {
+                    renderPlaylist(dom.searchInput ? dom.searchInput.value : '');
+                    renderQueue(dom.queueSearchInput ? dom.queueSearchInput.value : '');
+                });
             }
         });
 
@@ -347,6 +378,7 @@ function setupEventListeners() {
                 allTracksMap.set(track.trackHash, track);
                 saveTrackToIDB(track);
                 renderPlaylist(dom.searchInput ? dom.searchInput.value : '');
+                renderQueue(dom.queueSearchInput ? dom.queueSearchInput.value : '');
 
                 const streamUrl = (track.sourceType === 'drive' || track.webUrl.startsWith('/drive/'))
                     ? `${getBackendUrl()}${track.webUrl}`
@@ -379,9 +411,43 @@ function setupEventListeners() {
         });
     }
 
+    // Buscador en Cola
+    if (dom.queueSearchInput) {
+        dom.queueSearchInput.addEventListener('input', (e) => {
+            renderQueue(e.target.value);
+        });
+    }
+
     // Pestañas
     if (dom.tabBtnLocal) dom.tabBtnLocal.addEventListener('click', () => switchViewTab('local'));
+    if (dom.tabBtnQueue) dom.tabBtnQueue.addEventListener('click', () => switchViewTab('queue'));
     if (dom.tabBtnWeb) dom.tabBtnWeb.addEventListener('click', () => switchViewTab('web'));
+
+    // Botones de Acciones sobre la Playlist completa
+    if (dom.btnPlayPlaylist) {
+        dom.btnPlayPlaylist.addEventListener('click', () => playPlaylist(activePlaylistId));
+    }
+    if (dom.btnQueuePlaylist) {
+        dom.btnQueuePlaylist.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openQueuePopover(dom.btnQueuePlaylist, (pos) => {
+                queuePlaylist(activePlaylistId, pos);
+            });
+        });
+    }
+
+    // Botones de la Cola
+    if (dom.btnClearQueue) {
+        dom.btnClearQueue.addEventListener('click', () => {
+            if (currentQueue.length === 0) return;
+            if (confirm('¿Deseas vaciar toda la cola de reproducción?')) {
+                clearQueue();
+            }
+        });
+    }
+    if (dom.btnShuffleQueue) {
+        dom.btnShuffleQueue.addEventListener('click', shuffleQueue);
+    }
 
     // Búsqueda Web
     if (dom.btnDoWebSearch) dom.btnDoWebSearch.addEventListener('click', () => performWebSearch());
@@ -398,7 +464,7 @@ function setupEventListeners() {
     if (dom.playlistSelect) {
         dom.playlistSelect.addEventListener('change', (e) => {
             setActivePlaylistId(e.target.value);
-            updateCurrentQueue();
+            updateDisplayedPlaylist();
         });
     }
 
@@ -407,7 +473,7 @@ function setupEventListeners() {
         const triggerCreate = () => handleConfirmNewPlaylist((newId) => {
             setActivePlaylistId(newId);
             renderPlaylistSelectOptions();
-            updateCurrentQueue();
+            updateDisplayedPlaylist();
         });
 
         dom.btnConfirmNewPlaylist.addEventListener('click', triggerCreate);
@@ -429,6 +495,7 @@ function setupEventListeners() {
     // Modales de Edición y Agregar
     if (dom.btnConfirmEditTrack) dom.btnConfirmEditTrack.addEventListener('click', () => handleConfirmEditTrack(() => {
         renderPlaylist(dom.searchInput ? dom.searchInput.value : '');
+        renderQueue(dom.queueSearchInput ? dom.queueSearchInput.value : '');
     }));
     if (dom.btnCancelEditTrack) dom.btnCancelEditTrack.addEventListener('click', closeEditTrackModal);
     if (dom.btnCloseModalEdit) dom.btnCloseModalEdit.addEventListener('click', closeEditTrackModal);
@@ -439,7 +506,7 @@ function setupEventListeners() {
     // Evento Global Desacoplado de Actualización de Playlists
     document.addEventListener('dorocoro:playlist-changed', () => {
         renderPlaylistSelectOptions();
-        updateCurrentQueue();
+        updateDisplayedPlaylist();
     });
 
     // Carga de Carpetas y Archivos
@@ -477,12 +544,50 @@ function setupEventListeners() {
             if (dom.folderDisplayTag) dom.folderDisplayTag.textContent = 'VACÍO';
             loadTrack(0, false);
             renderPlaylistSelectOptions();
-            renderPlaylist();
+            updateDisplayedPlaylist();
+            renderQueue();
             await clearAllLocalDataFromIDB();
 
             // Vaciar también el registro central en SQLite
             apiFetch('/library', { method: 'DELETE' }).catch(() => {});
             appendLog('BIBLIOTECA Y MEMORIA VACIADAS EN TODOS LOS DISPOSITIVOS');
+        });
+    }
+
+    // Control de Ventana Retro: Maximizar al 90% en Escritorio
+    if (dom.btnWinMax && dom.mainContainer) {
+        dom.btnWinMax.addEventListener('click', () => {
+            if (window.innerWidth <= 820) {
+                appendLog("AVISO: El modo maximizado está optimizado para vista de escritorio (>820px).", true);
+                return;
+            }
+
+            const isMax = dom.mainContainer.classList.toggle('is-maximized');
+            dom.btnWinMax.textContent = isMax ? '❐' : '[]';
+            dom.btnWinMax.title = isMax ? 'Restaurar Tamaño Normal' : 'Maximizar al 90%';
+            appendLog(`[VENTANA] ${isMax ? 'VISTA MAXIMIZADA AL 90% (MODO ESCRITORIO)' : 'VISTA RESTAURADA A TAMAÑO NORMAL'}`);
+        });
+
+        window.addEventListener('resize', () => {
+            if (window.innerWidth <= 820 && dom.mainContainer.classList.contains('is-maximized')) {
+                dom.mainContainer.classList.remove('is-maximized');
+                dom.btnWinMax.textContent = '[]';
+                dom.btnWinMax.title = 'Maximizar al 90%';
+            }
+        });
+    }
+
+    if (dom.btnWinMin) {
+        dom.btnWinMin.addEventListener('click', () => {
+            appendLog('[VENTANA] TOKITUBE EN EJECUCIÓN');
+        });
+    }
+
+    if (dom.btnWinClose) {
+        dom.btnWinClose.addEventListener('click', () => {
+            if (confirm('¿Deseas salir de TokiTube y volver al portal?')) {
+                window.location.href = '/';
+            }
         });
     }
 
@@ -494,10 +599,16 @@ function setupEventListeners() {
             togglePlay();
         } else if (e.code === 'ArrowRight' && e.shiftKey) {
             e.preventDefault();
-            nextTrack(false, () => renderPlaylist(dom.searchInput ? dom.searchInput.value : ''));
+            nextTrack(false, () => {
+                renderPlaylist(dom.searchInput ? dom.searchInput.value : '');
+                renderQueue(dom.queueSearchInput ? dom.queueSearchInput.value : '');
+            });
         } else if (e.code === 'ArrowLeft' && e.shiftKey) {
             e.preventDefault();
-            prevTrack(() => renderPlaylist(dom.searchInput ? dom.searchInput.value : ''));
+            prevTrack(() => {
+                renderPlaylist(dom.searchInput ? dom.searchInput.value : '');
+                renderQueue(dom.queueSearchInput ? dom.queueSearchInput.value : '');
+            });
         }
     });
 }
@@ -517,7 +628,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 1. Renderizar opciones del selector de listas de inmediato
     renderPlaylistSelectOptions();
-    updateCurrentQueue();
+    updateDisplayedPlaylist();
 
     // 2. Restaurar biblioteca de IndexedDB local
     try {
@@ -539,6 +650,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
             });
 
+            // Restaurar estado guardado
             const savedState = await loadStateFromIDB();
             if (savedState) {
                 if (savedState.folderName && dom.folderDisplayTag) {
@@ -547,19 +659,51 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (savedState.activePlaylistId) {
                     setActivePlaylistId(savedState.activePlaylistId);
                 }
-                if (typeof savedState.currentIndex === 'number') {
-                    setCurrentIndex(savedState.currentIndex);
+            }
+
+            // Restaurar cola de reproducción local desde IndexedDB
+            const savedQueueData = await loadQueueFromIDB();
+            if (savedQueueData && Array.isArray(savedQueueData.queueHashes) && savedQueueData.queueHashes.length > 0) {
+                const restoredQueue = savedQueueData.queueHashes
+                    .map(hash => {
+                        const original = allTracksMap.get(hash);
+                        return original ? { ...original, queueUid: 'qu_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8) } : null;
+                    })
+                    .filter(Boolean);
+                if (restoredQueue.length > 0) {
+                    setCurrentQueue(restoredQueue);
+                    const safeIdx = (typeof savedQueueData.currentIndex === 'number' && savedQueueData.currentIndex < restoredQueue.length)
+                        ? savedQueueData.currentIndex
+                        : 0;
+                    setCurrentIndex(safeIdx);
+                }
+            } else {
+                // Si no había cola previa guardada, inicializar con las canciones locales
+                const defaultTracks = Array.from(allTracksMap.values())
+                    .filter(t => Boolean(t.file) || t.sourceType === 'local')
+                    .map(t => ({ ...t, queueUid: 'qu_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8) }));
+                if (defaultTracks.length > 0) {
+                    setCurrentQueue(defaultTracks);
+                    setCurrentIndex(0);
                 }
             }
 
             renderPlaylistSelectOptions();
-            updateCurrentQueue();
-            appendLog(`MEMORIA LOCAL RESTAURADA (${cachedTracks.length} PISTAS DE AUDIO)`);
+            updateDisplayedPlaylist();
+            renderQueue();
+            appendLog(`MEMORIA LOCAL RESTAURADA (${cachedTracks.length} PISTAS DE AUDIO, ${currentQueue.length} EN COLA)`);
+
+            if (currentQueue.length > 0) {
+                loadTrack(currentIndex, false);
+            } else {
+                loadTrack(0, false);
+            }
 
             resolveTracksDurations(Array.from(allTracksMap.values()), (hash, dur) => {
                 const track = allTracksMap.get(hash);
                 if (track) track.duration = dur;
                 renderPlaylist(dom.searchInput ? dom.searchInput.value : '');
+                renderQueue(dom.queueSearchInput ? dom.queueSearchInput.value : '');
             });
         } else {
             loadTrack(0, false);
@@ -573,7 +717,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     syncLibraryWithServer({
         onSyncComplete: () => {
             renderPlaylistSelectOptions();
-            updateCurrentQueue();
+            updateDisplayedPlaylist();
         }
     });
 });
@@ -587,15 +731,22 @@ window.TokiTubePlayer = {
         performWebSearch((track) => {
             switchViewTab('local');
             renderPlaylistSelectOptions();
-            updateCurrentQueue();
-            const idx = currentQueue.findIndex(t => t.trackHash === track.trackHash);
-            if (idx !== -1) {
-                loadTrack(idx, true, () => renderPlaylist(dom.searchInput ? dom.searchInput.value : ''));
-            }
+            updateDisplayedPlaylist();
+            renderQueue();
         });
     },
     play: playTrack,
     pause: pauseTrack,
-    next: () => nextTrack(false, () => renderPlaylist(dom.searchInput ? dom.searchInput.value : '')),
-    prev: () => prevTrack(() => renderPlaylist(dom.searchInput ? dom.searchInput.value : ''))
+    next: () => nextTrack(false, () => {
+        renderPlaylist(dom.searchInput ? dom.searchInput.value : '');
+        renderQueue(dom.queueSearchInput ? dom.queueSearchInput.value : '');
+    }),
+    prev: () => prevTrack(() => {
+        renderPlaylist(dom.searchInput ? dom.searchInput.value : '');
+        renderQueue(dom.queueSearchInput ? dom.queueSearchInput.value : '');
+    }),
+    playPlaylist,
+    queuePlaylist,
+    clearQueue,
+    shuffleQueue
 };

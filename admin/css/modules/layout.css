@@ -1,0 +1,207 @@
+/* ==================================================
+   ADMIN PANEL - LAYOUT & CONTROLS MODULE
+   ================================================== */
+
+/* Main Container & Panels */
+.main-container {
+    position: relative;
+    z-index: 10;
+    min-height: 100vh;
+    width: 100%;
+    max-width: 1350px;
+    margin: 0 auto;
+    padding: 100px 15px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.header-panel {
+    border: 2px solid var(--green);
+    background: var(--panel-bg);
+    padding: 20px;
+    box-shadow: 0 0 20px rgba(0, 255, 65, 0.25);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.header-title {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    text-transform: uppercase;
+    text-shadow: 2px 2px 0px #000, 4px 4px 0px var(--green-glow);
+    letter-spacing: 2px;
+}
+
+.badge-status {
+    font-size: 1.3rem;
+    background: rgba(0, 255, 65, 0.15);
+    border: 1px solid var(--green);
+    padding: 5px 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+}
+
+.badge-status.offline {
+    border-color: var(--red-alert);
+    color: var(--red-alert);
+    background: rgba(255, 51, 51, 0.15);
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    background-color: var(--green);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 1.5s infinite;
+}
+
+.badge-status.offline .status-dot {
+    background-color: var(--red-alert);
+    box-shadow: 0 0 8px var(--red-alert);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+.card {
+    border: 1px solid var(--green);
+    background: var(--panel-bg);
+    padding: 20px;
+    box-shadow: 0 0 15px rgba(0, 255, 65, 0.15);
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.card-header {
+    font-size: 1.8rem;
+    border-bottom: 1px dashed var(--green);
+    padding-bottom: 8px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.controls-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.btn-cmd {
+    background: rgba(0, 0, 0, 0.8);
+    color: var(--green);
+    border: 1px solid var(--green);
+    padding: 14px 20px;
+    font-size: 1.4rem;
+    cursor: pointer;
+    text-transform: uppercase;
+    text-align: left;
+    transition: all 0.25s ease;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    white-space: nowrap;
+}
+
+.btn-cmd:hover {
+    background: rgba(0, 255, 65, 0.2);
+    box-shadow: 0 0 15px var(--green-glow);
+    transform: translateY(-2px);
+}
+
+.btn-cmd:active {
+    transform: translateY(0);
+    background: rgba(0, 255, 65, 0.35);
+}
+
+.btn-cmd:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-cmd.danger {
+    color: var(--red-alert);
+    border-color: var(--red-alert);
+}
+
+.btn-cmd.danger:hover {
+    background: rgba(255, 51, 51, 0.2);
+    box-shadow: 0 0 15px rgba(255, 51, 51, 0.4);
+}
+
+/* User Session Bar in Header */
+.user-session-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.session-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.2rem;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid var(--green);
+    padding: 6px 12px;
+}
+
+.btn-action {
+    background: rgba(0, 255, 65, 0.1);
+    color: var(--green);
+    border: 1px solid var(--green);
+    padding: 4px 10px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-action:hover {
+    background: rgba(0, 255, 65, 0.25);
+    box-shadow: 0 0 10px var(--green-glow);
+}
+
+.btn-action.danger {
+    color: var(--red-alert);
+    border-color: var(--red-alert);
+    background: rgba(255, 51, 51, 0.1);
+}
+
+.btn-action.danger:hover {
+    background: rgba(255, 51, 51, 0.25);
+    box-shadow: 0 0 10px rgba(255, 51, 51, 0.4);
+}
+
+.user-avatar-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.user-avatar-role {
+    font-size: 1.4rem;
+    color: var(--green);
+    text-shadow: 0 0 6px var(--green-glow);
+    letter-spacing: 1px;
+}
+
+.user-avatar-status {
+    font-size: 1.05rem;
+    opacity: 0.75;
+}

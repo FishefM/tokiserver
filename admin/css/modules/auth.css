@@ -1,0 +1,247 @@
+/* ==================================================
+   ADMIN PANEL - AUTHENTICATION & LOGIN SCREEN MODULE
+   ================================================== */
+
+/* Authentication Overlay & Login Screen */
+.auth-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(5, 5, 5, 0.88);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 2000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.login-card {
+    position: relative;
+    z-index: 2100;
+    width: 100%;
+    max-width: 480px;
+    background: rgba(0, 15, 5, 0.95);
+    border: 2px solid var(--green);
+    box-shadow: 0 0 30px rgba(0, 255, 65, 0.3), inset 0 0 15px rgba(0, 255, 65, 0.1);
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.login-header {
+    border-bottom: 1px dashed var(--green);
+    padding-bottom: 15px;
+}
+
+.login-title {
+    font-size: 2rem;
+    color: var(--green);
+    text-shadow: 0 0 8px var(--green-glow);
+}
+
+.login-subtitle {
+    font-size: 1.1rem;
+    opacity: 0.8;
+    margin-top: 5px;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.input-group label {
+    font-size: 1.2rem;
+    color: var(--green);
+}
+
+.crt-input {
+    background: #000;
+    color: var(--green);
+    border: 1px solid var(--green);
+    padding: 12px 15px;
+    font-size: 1.3rem;
+    outline: none;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+#login-password {
+    font-size: 0.7rem;
+}
+
+.crt-input:focus {
+    border-color: #ffffff;
+    box-shadow: 0 0 12px var(--green-glow);
+    background: rgba(0, 255, 65, 0.05);
+}
+
+.crt-input option {
+    background: #000;
+    color: var(--green);
+}
+
+.auth-msg {
+    min-height: 24px;
+    font-size: 1.2rem;
+    color: var(--red-alert);
+    word-break: break-word;
+}
+
+.auth-msg.success {
+    color: var(--green);
+}
+
+.btn-login {
+    width: 100%;
+    margin-top: 10px;
+}
+
+/* Ocultar pantalla de login de inmediato si existe token activo */
+html.has-token #login-view {
+    display: none !important;
+}
+
+html.has-token #admin-main-panel {
+    display: flex !important;
+}
+
+/* Envoltorio para botón de mostrar/ocultar contraseña */
+.password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.password-input-wrapper .crt-input {
+    padding-right: 50px;
+}
+
+.btn-toggle-pwd {
+    position: absolute;
+    right: 6px;
+    background: transparent;
+    border: none;
+    color: var(--green);
+    font-size: 1.3rem;
+    cursor: pointer;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+    opacity: 0.85;
+    user-select: none;
+}
+
+.btn-toggle-pwd:hover {
+    opacity: 1;
+    transform: scale(1.15);
+}
+
+/* Desktop Split Layout for Login Card (50 / 50 Mitad y Mitad en pantallas grandes) */
+.login-card.desktop-split {
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 30px;
+    padding: 35px;
+}
+
+.login-left-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border-right: 1px dashed var(--green);
+    padding-right: 30px;
+}
+
+.login-right-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 20px;
+}
+
+.user-avatar-card-desktop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 16px;
+    width: 100%;
+}
+
+.avatar-carousel-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.btn-avatar-nav {
+    background: transparent;
+    border: none;
+    color: var(--green);
+    font-size: 1.6rem;
+    cursor: pointer;
+    padding: 4px 6px;
+    transition: all 0.2s ease;
+    user-select: none;
+    text-shadow: 0 0 8px var(--green-glow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.8;
+}
+
+.btn-avatar-nav:hover {
+    opacity: 1;
+    color: #ffffff;
+    text-shadow: 0 0 12px var(--green);
+    transform: scale(1.25);
+}
+
+.btn-avatar-nav:active {
+    transform: scale(0.9);
+}
+
+.avatar-frame-large {
+    width: 100%;
+    max-width: 310px;
+    aspect-ratio: 1 / 1;
+    border: 2px solid var(--green);
+    box-shadow: 0 0 25px var(--green-glow), inset 0 0 15px rgba(0, 255, 65, 0.2);
+    overflow: hidden;
+    background: #000;
+}
+
+.user-avatar-img-large {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.user-avatar-img-large.fading {
+    opacity: 0;
+    transform: scale(0.95);
+}
+
+.user-avatar-card-desktop:hover .user-avatar-img-large:not(.fading) {
+    transform: scale(1.04);
+}

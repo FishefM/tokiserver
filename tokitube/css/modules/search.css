@@ -1,0 +1,210 @@
+/* ==========================================================================
+   TOKITUBE - WEB SEARCH MODULE
+   Search Bar, Online Results List, Track Item Card & Actions
+   ========================================================================== */
+
+/* Vista de Búsqueda Web */
+.web-search-header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
+}
+
+.web-search-bar {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+}
+
+.web-search-input {
+    flex: 1 1 auto;
+    background: #000;
+    border: 1px solid var(--green);
+    color: var(--green);
+    padding: 6px 10px;
+    font-size: 1.1rem;
+    font-family: 'VT323', monospace;
+    outline: none;
+    min-width: 0;
+}
+
+.web-search-input:focus {
+    box-shadow: 0 0 8px var(--green-glow);
+    border-color: var(--magenta-neon);
+}
+
+.btn-web-search {
+    background: rgba(255, 0, 127, 0.15);
+    border: 1px solid var(--magenta-neon);
+    color: var(--magenta-neon);
+    padding: 6px 12px;
+    font-size: 1rem;
+    font-family: 'VT323', monospace;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.btn-web-search:hover {
+    background: var(--magenta-neon);
+    color: #fff;
+    box-shadow: 0 0 10px var(--magenta-glow);
+}
+
+.btn-web-search:hover .pixel-icon-mask {
+    background-color: #fff !important;
+}
+
+.web-status-msg {
+    border: 1px dashed rgba(0, 255, 65, 0.3);
+    background: rgba(0, 15, 5, 0.5);
+    padding: 10px;
+    text-align: center;
+    font-size: 0.95rem;
+    color: rgba(0, 255, 65, 0.7);
+    letter-spacing: 0.8px;
+}
+
+.web-results-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 380px;
+    overflow-y: auto;
+    padding-right: 4px;
+    margin: 0;
+}
+
+.web-track-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: rgba(0, 15, 5, 0.7);
+    border: 1px solid rgba(0, 255, 65, 0.3);
+    padding: 6px 8px;
+    transition: all 0.15s ease;
+    min-width: 0;
+}
+
+.web-track-item:hover {
+    background: rgba(0, 255, 65, 0.12);
+    border-color: var(--green);
+}
+
+.web-track-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.web-thumb-box {
+    width: 44px;
+    height: 33px;
+    border: 1px solid var(--green);
+    background: #000;
+    overflow: hidden;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.web-thumb-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.web-track-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow: hidden;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.web-track-title {
+    font-size: 1.05rem;
+    color: var(--green);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.web-track-meta {
+    font-size: 0.85rem;
+    color: rgba(0, 255, 65, 0.7);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.web-badge-source {
+    font-size: 0.75rem;
+    padding: 0 4px;
+    background: rgba(255, 0, 127, 0.2);
+    border: 1px solid var(--magenta-neon);
+    color: var(--magenta-neon);
+}
+
+.web-actions-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.btn-web-action {
+    background: rgba(0, 255, 65, 0.1);
+    border: 1px solid var(--green);
+    color: var(--green);
+    padding: 4px 6px;
+    font-size: 0.9rem;
+    font-family: 'VT323', monospace;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s ease;
+}
+
+.btn-web-action:hover {
+    background: var(--green);
+    color: #000;
+}
+
+.btn-web-action:hover .pixel-icon-mask {
+    background-color: #000 !important;
+}
+
+.btn-web-action.play-direct {
+    background: rgba(255, 0, 127, 0.15);
+    border-color: var(--magenta-neon);
+    color: var(--magenta-neon);
+}
+
+.btn-web-action.play-direct:hover {
+    background: var(--magenta-neon);
+    color: #fff;
+    box-shadow: 0 0 8px var(--magenta-glow);
+}
+
+.btn-web-action.play-direct:hover .pixel-icon-mask {
+    background-color: #fff !important;
+}
