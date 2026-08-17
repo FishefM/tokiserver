@@ -3,13 +3,19 @@ import {
     allTracksMap,
     userPlaylists,
     setUserPlaylists,
+    currentQueue,
+    currentIndex,
     appendLog
 } from './state.js';
 import { apiFetch, getBackendUrl } from './api.js';
-import { saveTrackToIDB, getCurrentUser, getAuthToken } from './storage.js';
+import { saveTrackToIDB, saveQueueToIDB, getCurrentUser, getAuthToken } from './storage.js';
 import { showLoader, hideLoader } from './utils.js';
 
 let activeEditTrackHash = null;
+
+export function getActiveEditTrack() {
+    return activeEditTrackHash ? allTracksMap.get(activeEditTrackHash) : null;
+}
 
 // =============================================================================
 // MODAL: NUEVA PLAYLIST (CREAR O IMPORTAR DESDE YOUTUBE/WEB)
@@ -612,4 +618,49 @@ function renderLinkWizard(container, track, onTrackLinked) {
 
     // Iniciar búsqueda automática de coincidencias
     executeSearch(initialQuery);
+}
+
+// =============================================================================
+// MODAL: REPARAR / CAMBIAR ENLACE O FUENTE DE PISTA
+// =============================================================================
+export function openRelinkTrackModal(track, isErrorMode = false, onRelinked = null) {
+    if (!dom.modalRelinkTrack || !track) return;
+
+    if (dom.relinkTrackName) {
+        dom.relinkTrackName.innerHTML = `
+            <div style="font-size: 1.15rem; color: var(--green); font-weight: bold;">[${track.artist}] - ${track.title}</div>
+            ${isErrorMode ? `<div style="color: var(--red-alert); font-size: 0.95rem; margin-top: 6px; line-height: 1.3;">⚠️ El video o enlace de audio anterior no está disponible en YouTube (video eliminado, privado o no disponible). Elige o busca una alternativa abajo:</div>` : ''}
+        `;
+    }
+
+    if (dom.btnRelinkSkipNext) {
+        dom.btnRelinkSkipNext.style.display = isErrorMode ? 'inline-flex' : 'none';
+    }
+
+    if (dom.relinkTrackContent) {
+        renderLinkWizard(dom.relinkTrackContent, track, async (updatedTrack) => {
+            closeRelinkTrackModal();
+            // Actualizar todas las instancias de esta pista en la cola de reproducción
+            currentQueue.forEach(item => {
+                if (item.trackHash === updatedTrack.trackHash) {
+                    item.webUrl = updatedTrack.webUrl;
+                    item.sourceType = updatedTrack.sourceType;
+                    if (updatedTrack.thumbnail) item.thumbnail = updatedTrack.thumbnail;
+                }
+            });
+            saveQueueToIDB(currentQueue, currentIndex);
+
+            appendLog(`[ENLACE ACTUALIZADO] Fuente corregida para: "${updatedTrack.title}"`);
+            document.dispatchEvent(new CustomEvent('dorocoro:track-relinked', { detail: { track: updatedTrack } }));
+            if (onRelinked) onRelinked(updatedTrack);
+        });
+    }
+
+    dom.modalRelinkTrack.style.display = 'flex';
+}
+
+export function closeRelinkTrackModal() {
+    if (dom.modalRelinkTrack) {
+        dom.modalRelinkTrack.style.display = 'none';
+    }
 }

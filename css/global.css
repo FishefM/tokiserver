@@ -9,7 +9,7 @@
     --yellow-warn: #ffcc00;
 }
 
-/* Utilities de Íconos Pixel Art Vectoriales */
+/* Utilities de Íconos Pixel Art Vectoriales - Optimizado para GPU */
 .pixel-icon-mask {
     display: inline-block;
     width: 24px;
@@ -21,12 +21,27 @@
     mask-size: contain;
     mask-repeat: no-repeat;
     mask-position: center;
-    filter: drop-shadow(0 0 5px var(--green-glow));
     vertical-align: middle;
+    transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+.pixel-icon-mask.glow,
+.navbar-brand .pixel-icon-mask,
+.playlist-title .pixel-icon-mask,
+.btn-pl-action:hover .pixel-icon-mask,
+.btn-track-action:hover .pixel-icon-mask,
+.btn-web-action:hover .pixel-icon-mask,
+.btn-deck-tab.active .pixel-icon-mask {
+    filter: drop-shadow(0 0 5px var(--green-glow));
 }
 
 .pixel-icon-mask.magenta {
     background-color: var(--magenta-neon);
+}
+
+.pixel-icon-mask.magenta.glow,
+.btn-pl-action.primary .pixel-icon-mask,
+.btn-pl-action.primary:hover .pixel-icon-mask {
     filter: drop-shadow(0 0 6px var(--magenta-glow));
 }
 
@@ -206,26 +221,15 @@ body {
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* Fondo de partículas ASCII Matrix */
+/* Fondo de partículas ASCII Matrix - Canvas 2D Acelerado por GPU */
 .particles-container {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: 2005;
+    z-index: 0;
     pointer-events: none;
-}
-
-.particle {
-    position: absolute;
-    top: -20px;
-    color: var(--green);
-    font-size: 1.2rem;
-    opacity: 0.3;
-    animation: fall linear infinite;
-}
-
-@keyframes fall {
-    to { transform: translateY(110vh); }
+    contain: strict;
+    transform: translateZ(0);
 }

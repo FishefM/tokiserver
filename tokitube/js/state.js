@@ -165,13 +165,21 @@ export const dom = {
     get btnConfirmEditTrack() { return document.getElementById('btn-confirm-modal-edit'); },
     get btnCancelEditTrack() { return document.getElementById('btn-cancel-modal-edit'); },
     get btnCloseModalEdit() { return document.getElementById('btn-close-modal-edit'); },
+    get btnEditTrackRelink() { return document.getElementById('btn-edit-track-relink'); },
 
     get modalAddToPlaylist() { return document.getElementById('modal-add-to-playlist'); },
     get addToPlTrackHash() { return document.getElementById('add-to-pl-track-hash'); },
     get addToPlTrackName() { return document.getElementById('add-to-pl-track-name'); },
     get addToPlListOptions() { return document.getElementById('add-to-pl-list-options'); },
     get btnCancelAddToPl() { return document.getElementById('btn-cancel-modal-add-pl'); },
-    get btnCloseModalAddPl() { return document.getElementById('btn-close-modal-add-pl'); }
+    get btnCloseModalAddPl() { return document.getElementById('btn-close-modal-add-pl'); },
+
+    get modalRelinkTrack() { return document.getElementById('modal-relink-track'); },
+    get relinkTrackName() { return document.getElementById('relink-track-name'); },
+    get relinkTrackContent() { return document.getElementById('relink-track-content'); },
+    get btnRelinkSkipNext() { return document.getElementById('btn-relink-skip-next'); },
+    get btnCancelModalRelink() { return document.getElementById('btn-cancel-modal-relink'); },
+    get btnCloseModalRelink() { return document.getElementById('btn-close-modal-relink'); }
 };
 
 // =============================================================================

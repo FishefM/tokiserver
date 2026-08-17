@@ -89,7 +89,10 @@ import {
     closeEditTrackModal,
     handleConfirmEditTrack,
     openAddToPlaylistModal,
-    closeAddToPlaylistModal
+    closeAddToPlaylistModal,
+    openRelinkTrackModal,
+    closeRelinkTrackModal,
+    getActiveEditTrack
 } from './modals.js';
 
 import {
@@ -397,10 +400,17 @@ function setupEventListeners() {
                 if (err.code === 1) detail = 'Reproducción cancelada';
                 if (err.code === 2) detail = 'Error de red al descargar/transmitir';
                 if (err.code === 3) detail = 'Error al decodificar flujo de audio';
-                if (err.code === 4) detail = 'Formato no soportado o el servidor respondió con error HTTP';
+                if (err.code === 4) detail = 'Enlace de YouTube no disponible (video eliminado o privado)';
             }
-            if (dom.statusIndicator) dom.statusIndicator.textContent = "ERROR";
-            appendLog(`ERROR DE AUDIO: ${detail} [${track?.title || 'Pista'}]`, true);
+            if (dom.statusIndicator) dom.statusIndicator.textContent = "ERROR ENLACE";
+            appendLog(`[ERROR DE AUDIO / STREAM] ${detail}: "${track?.title || 'Pista'}". Puedes elegir una fuente alternativa.`, true);
+
+            if (track) {
+                openRelinkTrackModal(track, true, () => {
+                    renderPlaylist(dom.searchInput ? dom.searchInput.value : '');
+                    renderQueue(dom.queueSearchInput ? dom.queueSearchInput.value : '');
+                });
+            }
         });
     }
 
@@ -499,14 +509,56 @@ function setupEventListeners() {
     }));
     if (dom.btnCancelEditTrack) dom.btnCancelEditTrack.addEventListener('click', closeEditTrackModal);
     if (dom.btnCloseModalEdit) dom.btnCloseModalEdit.addEventListener('click', closeEditTrackModal);
+    if (dom.btnEditTrackRelink) {
+        dom.btnEditTrackRelink.addEventListener('click', () => {
+            const track = getActiveEditTrack();
+            if (track) {
+                closeEditTrackModal();
+                openRelinkTrackModal(track, false, () => {
+                    renderPlaylist(dom.searchInput ? dom.searchInput.value : '');
+                    renderQueue(dom.queueSearchInput ? dom.queueSearchInput.value : '');
+                });
+            }
+        });
+    }
 
     if (dom.btnCancelAddToPl) dom.btnCancelAddToPl.addEventListener('click', closeAddToPlaylistModal);
     if (dom.btnCloseModalAddPl) dom.btnCloseModalAddPl.addEventListener('click', closeAddToPlaylistModal);
 
-    // Evento Global Desacoplado de Actualización de Playlists
+    // Modal Reparar / Cambiar Enlace
+    if (dom.btnCancelModalRelink) dom.btnCancelModalRelink.addEventListener('click', closeRelinkTrackModal);
+    if (dom.btnCloseModalRelink) dom.btnCloseModalRelink.addEventListener('click', closeRelinkTrackModal);
+    if (dom.btnRelinkSkipNext) {
+        dom.btnRelinkSkipNext.addEventListener('click', () => {
+            closeRelinkTrackModal();
+            nextTrack(true, () => {
+                renderPlaylist(dom.searchInput ? dom.searchInput.value : '');
+                renderQueue(dom.queueSearchInput ? dom.queueSearchInput.value : '');
+            });
+        });
+    }
+
+    // Eventos Globales Desacoplados de Actualización
     document.addEventListener('dorocoro:playlist-changed', () => {
         renderPlaylistSelectOptions();
         updateDisplayedPlaylist();
+    });
+
+    document.addEventListener('dorocoro:track-relinked', (e) => {
+        const updatedTrack = e.detail?.track;
+        renderPlaylistSelectOptions();
+        updateDisplayedPlaylist();
+        renderQueue(dom.queueSearchInput ? dom.queueSearchInput.value : '');
+        renderPlaylist(dom.searchInput ? dom.searchInput.value : '');
+
+        // Si la pista revinculada es la que está en reproducción, cargar y reproducir de inmediato
+        const currentPlayingTrack = currentQueue[currentIndex];
+        if (updatedTrack && currentPlayingTrack && currentPlayingTrack.trackHash === updatedTrack.trackHash) {
+            loadTrack(currentIndex, true, () => {
+                renderPlaylist(dom.searchInput ? dom.searchInput.value : '');
+                renderQueue(dom.queueSearchInput ? dom.queueSearchInput.value : '');
+            });
+        }
     });
 
     // Carga de Carpetas y Archivos

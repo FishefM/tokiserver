@@ -76,17 +76,27 @@ export function setVolume(fraction) {
     }
 }
 
-/**
- * Inicializa el renderizado del visualizador retro en el Canvas con caída suave al pausar.
- */
 let barHeights = new Float32Array(128);
+let visualizerRafId = null;
+let lastVisualizerTime = 0;
 
 export function initVisualizer() {
     if (!dom.canvas) return;
-    canvasCtx = dom.canvas.getContext('2d');
+    canvasCtx = dom.canvas.getContext('2d', { alpha: false });
 
-    function renderFrame() {
-        requestAnimationFrame(renderFrame);
+    function renderFrame(now) {
+        if (document.hidden) {
+            visualizerRafId = null;
+            return;
+        }
+
+        visualizerRafId = requestAnimationFrame(renderFrame);
+
+        // Si está en standby/pausa, limitar renderizado a ~25 FPS para no gastar GPU innecesariamente
+        if (!isPlaying) {
+            if (now - lastVisualizerTime < 40) return;
+            lastVisualizerTime = now;
+        }
 
         const width = dom.canvas.width;
         const height = dom.canvas.height;
@@ -116,10 +126,10 @@ export function initVisualizer() {
         }
 
         if (!hasActiveBars && !isPlaying) {
-            // Animación idle suave en standby original
+            // Animación idle suave en standby
             canvasCtx.fillStyle = 'rgba(0, 255, 157, 0.15)';
             for (let i = 0; i < 32; i++) {
-                const barH = 2 + Math.sin((Date.now() / 400) + (i * 0.3)) * 2;
+                const barH = 2 + Math.sin((Date.now() / 500) + (i * 0.3)) * 2;
                 canvasCtx.fillRect(i * (width / 32) + 1, height - barH, (width / 32) - 2, barH);
             }
             return;
@@ -148,7 +158,22 @@ export function initVisualizer() {
         }
     }
 
-    renderFrame();
+    if (visualizerRafId) cancelAnimationFrame(visualizerRafId);
+    visualizerRafId = requestAnimationFrame(renderFrame);
+
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            if (!visualizerRafId) {
+                lastVisualizerTime = 0;
+                visualizerRafId = requestAnimationFrame(renderFrame);
+            }
+        } else {
+            if (visualizerRafId) {
+                cancelAnimationFrame(visualizerRafId);
+                visualizerRafId = null;
+            }
+        }
+    });
 }
 
 /**

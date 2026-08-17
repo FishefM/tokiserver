@@ -365,7 +365,14 @@
                 <input type="text" id="edit-track-artist" class="modal-input" placeholder="Artista">
                 <label for="edit-track-album" class="modal-label">ÁLBUM:</label>
                 <input type="text" id="edit-track-album" class="modal-input" placeholder="Álbum">
-                <div class="modal-actions">
+                
+                <div style="margin-top: 10px; border-top: 1px dashed rgba(0, 255, 65, 0.2); padding-top: 10px;">
+                    <button type="button" class="btn-modal" id="btn-edit-track-relink" style="width: 100%; border-color: var(--yellow-warn); color: var(--yellow-warn); background: rgba(255, 204, 0, 0.08); font-size: 0.95rem; padding: 6px;">
+                        [🔗] CAMBIAR O REPARAR ENLACE WEB (YOUTUBE)
+                    </button>
+                </div>
+
+                <div class="modal-actions" style="margin-top: 12px;">
                     <button type="button" class="btn-modal cancel" id="btn-cancel-modal-edit">CANCELAR</button>
                     <button type="button" class="btn-modal confirm" id="btn-confirm-modal-edit">GUARDAR CAMBIOS</button>
                 </div>
@@ -394,7 +401,30 @@
         </div>
     </div>
 
-    <!-- 4. Loader Retro Global para Procesamiento / Esperas -->
+    <!-- 4. Modal para Reparar / Cambiar Enlace Web de Pista (Error de Stream o Re-vincular) -->
+    <div class="retro-modal-backdrop" id="modal-relink-track" style="display: none;">
+        <div class="retro-modal-box">
+            <div class="modal-header" style="background: rgba(255, 0, 85, 0.15); border-bottom-color: var(--red-alert);">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="pixel-icon-mask magenta" style="-webkit-mask-image: url('/img/icons/zap.svg'); mask-image: url('/img/icons/zap.svg'); width: 16px; height: 16px;"></span>
+                    <span style="color: var(--red-alert);">[!] REPARAR / CAMBIAR ENLACE DE PISTA</span>
+                </div>
+                <button type="button" class="modal-close-btn" id="btn-close-modal-relink">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="relink-track-name" class="modal-track-preview" style="border-left-color: var(--red-alert);">Pista seleccionada</div>
+                <div id="relink-track-content" style="display: flex; flex-direction: column; gap: 10px;">
+                    <!-- Inyectado dinámicamente -->
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-modal" id="btn-relink-skip-next" style="border-color: var(--yellow-warn); color: var(--yellow-warn); display: none;">SIGUIENTE PISTA</button>
+                    <button type="button" class="btn-modal cancel" id="btn-cancel-modal-relink">CERRAR</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. Loader Retro Global para Procesamiento / Esperas -->
     <div class="retro-modal-backdrop retro-loader-backdrop" id="retro-global-loader" style="display: none;">
         <div class="retro-modal-box retro-loader-box">
             <div class="modal-header loader-header">
