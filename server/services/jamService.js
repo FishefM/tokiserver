@@ -14,13 +14,19 @@ const activeJams = new Map();
  */
 export async function getTailscaleDnsName() {
   try {
+    console.log('[TAILSCALE DIAGNOSTIC] Consultando estado de Tailscale: tailscale status --json');
     const { stdout } = await execAsync('tailscale status --json');
     const data = JSON.parse(stdout);
     if (data.Self && data.Self.DNSName) {
-      return data.Self.DNSName.replace(/\.$/, ''); // Elimina punto final
+      const dns = data.Self.DNSName.replace(/\.$/, '');
+      const ips = data.Self.TailscaleIPs ? data.Self.TailscaleIPs.join(', ') : 'N/A';
+      console.log(`[TAILSCALE DIAGNOSTIC] Nodo: ${data.Self.HostName || 'Self'} | DNS: ${dns} | IP: ${ips}`);
+      return dns;
+    } else {
+      console.warn('[TAILSCALE DIAGNOSTIC] Nodo Tailscale encontrado pero sin DNSName (MagicDNS podría estar apagado).');
     }
   } catch (err) {
-    // Si no está en Tailscale, retornar null
+    console.warn(`[TAILSCALE DIAGNOSTIC] Tailscale CLI no disponible: ${err.message}`);
   }
   return null;
 }
@@ -29,15 +35,36 @@ export async function getTailscaleDnsName() {
  * Asegura que Tailscale Funnel esté habilitado en segundo plano para el puerto del servidor.
  */
 export async function ensureTailscaleFunnel() {
+  console.log(`\n==================================================`);
+  console.log(`[JAM PUBLICA] Iniciando diagnostico de Tailscale Funnel para puerto ${PORT}...`);
   try {
     const tsDomain = await getTailscaleDnsName();
-    if (!tsDomain) return null;
+    if (!tsDomain) {
+      console.warn('[JAM PUBLICA DIAGNOSTICO] No se detectó dominio MagicDNS de Tailscale.');
+      console.log(`==================================================\n`);
+      return null;
+    }
 
-    // Intentar activar Tailscale Funnel para el puerto del servidor en segundo plano
-    await execAsync(`tailscale funnel --bg ${PORT}`).catch(() => {});
-    return `https://${tsDomain}`;
+    console.log(`[JAM PUBLICA] Ejecutando comando: tailscale funnel --bg ${PORT}`);
+    const { stdout, stderr } = await execAsync(`tailscale funnel --bg ${PORT}`);
+    if (stdout && stdout.trim()) {
+      console.log(`[JAM PUBLICA STDOUT] ${stdout.trim()}`);
+    }
+    if (stderr && stderr.trim()) {
+      console.log(`[JAM PUBLICA STDERR] ${stderr.trim()}`);
+    }
+
+    const funnelHttps = `https://${tsDomain}`;
+    console.log(`[JAM PUBLICA OK] Funnel configurado exitosamente: ${funnelHttps}`);
+    console.log(`==================================================\n`);
+    return funnelHttps;
   } catch (err) {
-    console.warn('[TAILSCALE FUNNEL WARN]', err.message);
+    console.error(`[JAM PUBLICA ERROR] Fallo al ejecutar tailscale funnel: ${err.message}`);
+    if (err.stderr) {
+      console.error(`[JAM PUBLICA STDERR] ${err.stderr.trim()}`);
+    }
+    console.log(`[JAM PUBLICA CONSEJO] Si el error indica permisos, ejecuta 'sudo tailscale set --operator=$USER' y revisa las ACLs de Tailscale.`);
+    console.log(`==================================================\n`);
     return null;
   }
 }
@@ -50,6 +77,7 @@ export async function ensureTailscaleFunnel() {
  */
 export async function startJamSession(hostUsername, type = 'tokijam', baseUrl = '') {
   const normalizedUser = (hostUsername || 'admin').toLowerCase();
+  console.log(`[JAM START] Usuario @${normalizedUser} iniciando sesion de tipo: ${type.toUpperCase()} | BaseUrl: ${baseUrl}`);
   
   if (type === 'tokijam') {
     // Solo puede existir UNA TokiJAM activa a la vez en todo el servidor
@@ -75,16 +103,26 @@ export async function startJamSession(hostUsername, type = 'tokijam', baseUrl = 
   let funnelUrl = null;
 
   if (type === 'general') {
-    const tsHttps = await ensureTailscaleFunnel();
-    if (tsHttps) {
-      funnelUrl = `${tsHttps}/tokitube/jam.html?room=${roomId}`;
-      shareUrl = funnelUrl;
-    } else {
+    const isPublicHttps = baseUrl.startsWith('https://') && !baseUrl.includes('localhost') && !baseUrl.includes('127.0.0.1');
+    if (isPublicHttps) {
+      console.log(`[JAM GENERAL] Servidor ya alojado bajo HTTPS publico (${baseUrl}). Usando dominio directo.`);
       shareUrl = `${baseUrl}/tokitube/jam.html?room=${roomId}`;
+    } else {
+      console.log(`[JAM GENERAL] Entorno local/HTTP detectado. Activando Tailscale Funnel...`);
+      const tsHttps = await ensureTailscaleFunnel();
+      if (tsHttps) {
+        funnelUrl = `${tsHttps}/tokitube/jam.html?room=${roomId}`;
+        shareUrl = funnelUrl;
+        console.log(`[JAM GENERAL] Enlace Funnel generado: ${shareUrl}`);
+      } else {
+        shareUrl = `${baseUrl}/tokitube/jam.html?room=${roomId}`;
+        console.warn(`[JAM GENERAL AVISO] Funnel no disponible. Enlace alternativo: ${shareUrl}`);
+      }
     }
   } else {
     // TokiJAM para usuarios autenticados
     shareUrl = `${baseUrl}/tokitube/jam.html?room=${roomId}`;
+    console.log(`[TOKIJAM] Enlace interno generado: ${shareUrl}`);
   }
 
   const newJam = {
@@ -259,6 +297,7 @@ export function subscribeToJamEvents(roomId, req, res) {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.flushHeaders();
 
