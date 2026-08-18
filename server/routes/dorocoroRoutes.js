@@ -36,6 +36,7 @@ import {
   addTrackToJam,
   updateJamPlayingTrack
 } from '../services/jamService.js';
+import { searchRateLimiter, jamQueueRateLimiter } from '../middleware/securityMiddleware.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -200,7 +201,7 @@ router.get('/library', async (req, res) => {
  * GET /api/dorocoro/search?q=<termino>&limit=<numero>
  * Realiza una búsqueda de canciones en la web con metadatos estructurados.
  */
-router.get('/search', async (req, res) => {
+router.get('/search', searchRateLimiter, async (req, res) => {
   try {
     const q = req.query.q;
     const limit = parseInt(req.query.limit, 10) || 8;
@@ -743,7 +744,7 @@ router.get('/jam/events/:roomId', (req, res) => {
  * POST /api/tokitube/jam/queue/:roomId
  * Agrega una canción a la cola de la sala JAM.
  */
-router.post('/jam/queue/:roomId', async (req, res) => {
+router.post('/jam/queue/:roomId', jamQueueRateLimiter, async (req, res) => {
   try {
     const { roomId } = req.params;
     const { track, senderName, position } = req.body;
