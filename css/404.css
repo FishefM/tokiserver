@@ -1,0 +1,321 @@
+/* ==========================================================================
+   TOKISERVER - 404 ERROR PAGE STYLESHEET (Cyberpunk CRT Terminal)
+   ========================================================================== */
+
+:root {
+    --green: #00ff41;
+    --green-glow: rgba(0, 255, 65, 0.4);
+    --magenta-neon: #ff007f;
+    --magenta-glow: rgba(255, 0, 127, 0.45);
+    --red-alert: #ff3333;
+    --red-glow: rgba(255, 51, 51, 0.5);
+    --yellow-warn: #ffd700;
+    --dark-bg: #05070a;
+    --panel-bg: rgba(0, 15, 8, 0.85);
+    --border-color: #00ff41;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'VT323', monospace;
+}
+
+body {
+    background-color: var(--dark-bg);
+    color: var(--green);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px 15px;
+    overflow-x: hidden;
+    position: relative;
+}
+
+/* CRT Scanlines and Flicker Overlay */
+.crt-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%, 
+        rgba(0, 0, 0, 0.35) 50%
+    ), linear-gradient(
+        90deg,
+        rgba(255, 0, 0, 0.03),
+        rgba(0, 255, 0, 0.01),
+        rgba(0, 0, 255, 0.03)
+    );
+    background-size: 100% 3px, 4px 100%;
+    z-index: 999;
+}
+
+.crt-vignette {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+}
+
+/* Main 404 Container */
+.error-terminal-container {
+    width: 100%;
+    max-width: 780px;
+    background: var(--panel-bg);
+    border: 2px solid var(--red-alert);
+    box-shadow: 0 0 25px var(--red-glow), inset 0 0 15px rgba(255, 51, 51, 0.15);
+    border-radius: 6px;
+    padding: 24px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    position: relative;
+    z-index: 10;
+    backdrop-filter: blur(8px);
+}
+
+/* Terminal Header */
+.terminal-window-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px dashed var(--red-alert);
+    padding-bottom: 12px;
+}
+
+.terminal-title-tag {
+    font-size: 1.4rem;
+    font-weight: bold;
+    color: var(--red-alert);
+    letter-spacing: 2px;
+    text-shadow: 0 0 8px var(--red-glow);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.terminal-status-badge {
+    background: rgba(255, 51, 51, 0.15);
+    border: 1px solid var(--red-alert);
+    color: var(--red-alert);
+    font-size: 1.1rem;
+    padding: 2px 8px;
+    border-radius: 3px;
+    animation: statusBlink 1.5s infinite;
+}
+
+@keyframes statusBlink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+/* ASCII Banner */
+.ascii-banner-wrap {
+    text-align: center;
+    margin: 8px 0;
+    overflow-x: auto;
+}
+
+.ascii-art {
+    font-size: clamp(0.75rem, 1.8vw, 1.1rem);
+    line-height: 1.05;
+    color: var(--red-alert);
+    text-shadow: 0 0 12px var(--red-glow);
+    white-space: pre;
+    display: inline-block;
+    letter-spacing: 1px;
+}
+
+/* Glitch Heading */
+.error-heading {
+    text-align: center;
+    font-size: 1.8rem;
+    color: #fff;
+    letter-spacing: 2px;
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+    margin-top: 4px;
+}
+
+.error-subtitle {
+    text-align: center;
+    font-size: 1.25rem;
+    color: var(--yellow-warn);
+    letter-spacing: 1px;
+}
+
+/* Diagnostic Console Box */
+.diagnostic-console-box {
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid rgba(0, 255, 65, 0.4);
+    border-radius: 4px;
+    padding: 16px;
+    font-size: 1.25rem;
+    line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.9);
+}
+
+.diag-line {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    color: var(--green);
+}
+
+.diag-label {
+    color: rgba(0, 255, 65, 0.6);
+}
+
+.diag-val {
+    color: #fff;
+    font-weight: bold;
+    word-break: break-all;
+}
+
+.diag-val.alert {
+    color: var(--red-alert);
+    text-shadow: 0 0 6px var(--red-glow);
+}
+
+.diag-val.warn {
+    color: var(--yellow-warn);
+}
+
+/* Action Navigation Buttons Grid */
+.terminal-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.btn-term-action {
+    background: rgba(0, 255, 65, 0.08);
+    border: 1px solid var(--green);
+    color: var(--green);
+    padding: 12px 14px;
+    font-size: 1.3rem;
+    font-weight: bold;
+    text-decoration: none;
+    text-align: center;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-term-action:hover {
+    background: var(--green);
+    color: #000;
+    box-shadow: 0 0 16px var(--green-glow);
+    transform: translateY(-2px);
+}
+
+.btn-term-action.primary {
+    border-color: var(--magenta-neon);
+    color: var(--magenta-neon);
+    background: rgba(255, 0, 127, 0.08);
+}
+
+.btn-term-action.primary:hover {
+    background: var(--magenta-neon);
+    color: #fff;
+    box-shadow: 0 0 18px var(--magenta-glow);
+}
+
+.btn-term-action.secondary {
+    border-color: var(--yellow-warn);
+    color: var(--yellow-warn);
+    background: rgba(255, 215, 0, 0.08);
+}
+
+.btn-term-action.secondary:hover {
+    background: var(--yellow-warn);
+    color: #000;
+    box-shadow: 0 0 16px rgba(255, 215, 0, 0.4);
+}
+
+/* Interactive Command Line Box */
+.term-cli-box {
+    border-top: 1px dashed rgba(0, 255, 65, 0.3);
+    padding-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.term-cli-prompt-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #000;
+    border: 1px solid rgba(0, 255, 65, 0.4);
+    padding: 6px 10px;
+    border-radius: 3px;
+}
+
+.term-cli-prompt {
+    color: var(--magenta-neon);
+    font-size: 1.25rem;
+    font-weight: bold;
+    user-select: none;
+}
+
+.term-cli-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--green);
+    font-size: 1.3rem;
+    letter-spacing: 1px;
+}
+
+.term-cli-input::placeholder {
+    color: rgba(0, 255, 65, 0.35);
+    font-size: 1.15rem;
+}
+
+.term-cli-output {
+    font-size: 1.15rem;
+    color: var(--green);
+    min-height: 24px;
+    opacity: 0.85;
+}
+
+/* Footer info */
+.terminal-footer {
+    display: flex;
+    justify-content: space-between;
+    font-size: 1.05rem;
+    opacity: 0.6;
+    border-top: 1px solid rgba(255, 51, 51, 0.2);
+    padding-top: 10px;
+}
+
+@media (max-width: 600px) {
+    .error-terminal-container {
+        padding: 16px 14px;
+    }
+    .error-heading {
+        font-size: 1.45rem;
+    }
+    .terminal-actions-grid {
+        grid-template-columns: 1fr;
+    }
+}

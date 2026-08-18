@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404: SEÑAL NO ENCONTRADA | TokiServer</title>
+    <meta name="description" content="Error 404: El recurso o subdominio solicitado no existe en la red TokiServer.">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/global.css">
+    <link rel="stylesheet" href="/css/404.css">
+</head>
+<body>
+    <div class="crt-overlay"></div>
+    <div class="crt-vignette"></div>
+
+    <main class="error-terminal-container" id="terminal-main-container">
+        <!-- Encabezado de la Ventana de Error -->
+        <header class="terminal-window-header">
+            <div class="terminal-title-tag">
+                <span class="terminal-status-badge">[!] ERROR CRITICO</span>
+                <span>TOKISERVER // TERMINAL_404</span>
+            </div>
+            <div class="terminal-status-badge" id="error-clock">00:00:00</div>
+        </header>
+
+        <!-- ASCII Banner 404 -->
+        <div class="ascii-banner-wrap" aria-hidden="true">
+            <pre class="ascii-art">
+ ██╗  ██╗ ██████╗ ██╗  ██╗
+ ██║  ██║██╔═████╗██║  ██║
+ ███████║██║██╔██║███████║
+ ╚════██║████╔╝██║╚════██║
+      ██║╚██████╔╝     ██║
+      ╚═╝ ╚═════╝      ╚═╝</pre>
+        </div>
+
+        <h1 class="error-heading">[SECTOR NO ENCONTRADO EN LA RED]</h1>
+        <p class="error-subtitle">> La señal de transmisión o el subdominio no está disponible.</p>
+
+        <!-- Caja de Diagnóstico en Tiempo Real -->
+        <section class="diagnostic-console-box" aria-label="Diagnóstico de red">
+            <div class="diag-line">
+                <span class="diag-label">[DIAGNOSTICO]:</span>
+                <span class="diag-val alert">HTTP 404 NOT_FOUND</span>
+            </div>
+            <div class="diag-line">
+                <span class="diag-label">[SUBDOMINIO / HOST]:</span>
+                <span class="diag-val warn" id="req-host">tokiserver</span>
+            </div>
+            <div class="diag-line">
+                <span class="diag-label">[RUTA SOLICITADA]:</span>
+                <span class="diag-val" id="req-path">/</span>
+            </div>
+            <div class="diag-line">
+                <span class="diag-label">[ESTADO NODO]:</span>
+                <span class="diag-val">Activo y Protegido | Subdominio o Recurso Inexistente</span>
+            </div>
+        </section>
+
+        <!-- Botones de Acción y Navegación Rápida -->
+        <nav class="terminal-actions-grid" aria-label="Navegación de recuperación">
+            <a href="/" class="btn-term-action primary" id="btn-nav-home" title="Ir al Inicio / Panel">
+                &gt; [PANEL PRINCIPAL]
+            </a>
+            <a href="/tokitube" class="btn-term-action" id="btn-nav-tokitube" title="Abrir Reproductor TokiTube">
+                &gt; [TOKITUBE PLAYER]
+            </a>
+            <a href="/login" class="btn-term-action secondary" id="btn-nav-login" title="Iniciar Sesión">
+                &gt; [INICIAR SESION]
+            </a>
+            <button type="button" class="btn-term-action" id="btn-nav-back" title="Regresar a la página anterior">
+                &gt; [VOLVER ATRAS]
+            </button>
+        </nav>
+
+        <!-- Consola Interactiva Retro -->
+        <section class="term-cli-box">
+            <div class="term-cli-prompt-line">
+                <span class="term-cli-prompt">TOKICLI:&gt;</span>
+                <input type="text" id="term-input" class="term-cli-input" placeholder="Escribe 'help', 'tokitube', 'admin' o 'home'..." autocomplete="off" spellcheck="false">
+            </div>
+            <div class="term-cli-output" id="term-output">&gt; Consola de recuperación lista. Ingresa un comando o selecciona una opción.</div>
+        </section>
+
+        <footer class="terminal-footer">
+            <span>TokiServer OS v2.4</span>
+            <span>Seguridad &amp; Enrutamiento Activo</span>
+        </footer>
+    </main>
+
+    <script>
+        // Inicialización de Diagnóstico Dinámico
+        document.addEventListener('DOMContentLoaded', () => {
+            const reqHostEl = document.getElementById('req-host');
+            const reqPathEl = document.getElementById('req-path');
+            const clockEl = document.getElementById('error-clock');
+            const btnBack = document.getElementById('btn-nav-back');
+            const termInput = document.getElementById('term-input');
+            const termOutput = document.getElementById('term-output');
+
+            // Mostrar el Host y Path exactos que originaron el 404
+            if (reqHostEl) reqHostEl.textContent = window.location.host || 'desconocido';
+            if (reqPathEl) reqPathEl.textContent = window.location.pathname + window.location.search || '/';
+
+            // Reloj en tiempo real
+            function updateClock() {
+                if (clockEl) {
+                    const now = new Date();
+                    clockEl.textContent = now.toTimeString().split(' ')[0];
+                }
+            }
+            updateClock();
+            setInterval(updateClock, 1000);
+
+            // Botón volver atrás
+            if (btnBack) {
+                btnBack.addEventListener('click', () => {
+                    if (window.history.length > 1) {
+                        window.history.back();
+                    } else {
+                        window.location.href = '/';
+                    }
+                });
+            }
+
+            // Consola CLI Interactiva
+            if (termInput && termOutput) {
+                termInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        const cmd = termInput.value.trim().toLowerCase();
+                        termInput.value = '';
+                        executeCliCommand(cmd);
+                    }
+                });
+            }
+
+            function executeCliCommand(cmd) {
+                if (!cmd) return;
+                switch (cmd) {
+                    case 'help':
+                        termOutput.textContent = '> Comandos: home, admin, tokitube, drive, status, login, back, clear, ping';
+                        break;
+                    case 'home':
+                    case 'admin':
+                    case 'root':
+                        termOutput.textContent = '> Redirigiendo al Panel Principal...';
+                        setTimeout(() => window.location.href = '/', 600);
+                        break;
+                    case 'tokitube':
+                    case 'music':
+                    case 'jam':
+                        termOutput.textContent = '> Redirigiendo a TokiTube Player...';
+                        setTimeout(() => window.location.href = '/tokitube', 600);
+                        break;
+                    case 'drive':
+                    case 'files':
+                        termOutput.textContent = '> Redirigiendo a TokiDrive...';
+                        setTimeout(() => window.location.href = '/drive', 600);
+                        break;
+                    case 'login':
+                    case 'auth':
+                        termOutput.textContent = '> Redirigiendo a Inicio de Sesión...';
+                        setTimeout(() => window.location.href = '/login', 600);
+                        break;
+                    case 'back':
+                        termOutput.textContent = '> Regresando...';
+                        setTimeout(() => window.history.back(), 500);
+                        break;
+                    case 'clear':
+                    case 'cls':
+                        termOutput.textContent = '> Consola de recuperación lista.';
+                        break;
+                    case 'ping':
+                        termOutput.textContent = `> PONG! Latencia: ${Math.floor(Math.random() * 15 + 5)}ms | Host: ${window.location.host}`;
+                        break;
+                    default:
+                        termOutput.textContent = `> Comando no reconocido: "${cmd}". Escribe 'help' para ver comandos disponibles.`;
+                        break;
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -73,6 +73,24 @@ app.use('/', authRoutes);
 // Servir archivos del frontend
 app.use(express.static(htmlRoot, { dotfiles: 'deny' }));
 
+// Manejador 404 para rutas inexistentes y wildcards de subdominios
+app.use((req, res) => {
+  res.status(404);
+
+  // Si la petición proviene de un navegador web (HTML)
+  if (req.accepts('html')) {
+    return res.sendFile(path.join(htmlRoot, '404.html'));
+  }
+
+  // Si es una petición JSON/API
+  if (req.accepts('json')) {
+    return res.json({ success: false, error: '404: Ruta o recurso no encontrado en TokiServer.' });
+  }
+
+  // Fallback en texto plano
+  res.type('txt').send('404 Not Found');
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n==================================================`);
   console.log(`[TOKISERVER BACKEND ONLINE] Escuchando en el puerto ${PORT}`);
