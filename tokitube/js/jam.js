@@ -429,7 +429,13 @@ function connectHostSSE(roomId) {
         } catch (err) {}
     });
 
-    jamEventSource.addEventListener('jam_closed', () => {
+    jamEventSource.addEventListener('jam_closed', (e) => {
+        try {
+            const data = JSON.parse(e.data);
+            if (data.message) {
+                appendLog(`[JAM] ${data.message}`, true);
+            }
+        } catch (err) {}
         activeJamData = null;
         updateJamBadgeUI();
         closeJamModal();

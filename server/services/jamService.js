@@ -27,7 +27,50 @@ export async function getTailscaleDnsName() {
 }
 
 /**
- * Obtiene la URL pública de Tailscale de forma segura y de solo lectura.
+ * Activa dinámicamente Tailscale Funnel en el puerto 8443 cuando se crea una Jam General.
+ */
+export async function enableTailscaleFunnel() {
+  try {
+    console.log('[TAILSCALE FUNNEL] Activando Funnel en puerto 8443 para Jam General...');
+    await execAsync('tailscale funnel --bg --https=8443 on').catch(() => 
+      execAsync(`tailscale funnel --bg --https=8443 ${PORT}`)
+    );
+    console.log('[TAILSCALE FUNNEL] Funnel activado exitosamente en puerto 8443.');
+    return true;
+  } catch (err) {
+    console.warn('[TAILSCALE FUNNEL WARN] No se pudo activar Funnel automáticamente:', err.message);
+    return false;
+  }
+}
+
+/**
+ * Apaga Tailscale Funnel en el puerto 8443 si no quedan Jams Generales activas en el servidor.
+ */
+export async function disableTailscaleFunnelIfNoActive() {
+  try {
+    let hasActiveGeneralJam = false;
+    for (const jam of activeJams.values()) {
+      if (jam.type === 'general' && jam.status === 'active') {
+        hasActiveGeneralJam = true;
+        break;
+      }
+    }
+
+    if (!hasActiveGeneralJam) {
+      console.log('[TAILSCALE FUNNEL] Apagando Funnel en puerto 8443 (cero Jams Generales activas)...');
+      await execAsync('tailscale funnel --https=8443 off').catch(() => {});
+      console.log('[TAILSCALE FUNNEL] Funnel apagado correctamente.');
+    }
+  } catch (err) {
+    console.warn('[TAILSCALE FUNNEL OFF WARN]', err.message);
+  }
+}
+
+// Asegurar que el Funnel esté apagado al arrancar hasta que alguien inicie una Jam General
+disableTailscaleFunnelIfNoActive().catch(() => {});
+
+/**
+ * Obtiene la URL pública de Tailscale de forma segura.
  * Detecta automáticamente si Funnel está activo en el puerto estándar o en :8443 / :10000.
  */
 export async function getTailscalePublicUrl() {
@@ -51,7 +94,7 @@ export async function getTailscalePublicUrl() {
 
     const tsDomain = await getTailscaleDnsName();
     if (tsDomain) {
-      return `https://${tsDomain}`;
+      return `https://${tsDomain}:8443`;
     }
   } catch (err) {}
   return null;
@@ -91,6 +134,9 @@ export async function startJamSession(hostUsername, type = 'tokijam', baseUrl = 
   let funnelUrl = null;
 
   if (type === 'general') {
+    // Activar Funnel bajo demanda para acceso público
+    await enableTailscaleFunnel();
+
     const tsHttps = await getTailscalePublicUrl();
     if (tsHttps) {
       funnelUrl = `${tsHttps}/tokitube/jam.html?room=${roomId}`;
@@ -116,6 +162,7 @@ export async function startJamSession(hostUsername, type = 'tokijam', baseUrl = 
     currentPlaying: null,
     queueSnapshot: [],
     subscribers: new Set(),
+    lastActivityTimestamp: Date.now(),
     createdAt
   };
 
@@ -144,6 +191,31 @@ export async function startJamSession(hostUsername, type = 'tokijam', baseUrl = 
   };
 }
 
+// Tiempo límite de inactividad: 10 minutos sin reproducción (600,000 ms)
+const JAM_INACTIVITY_TIMEOUT_MS = 10 * 60 * 1000;
+
+// Timer en segundo plano para verificar periódicamente salas inactivas
+setInterval(async () => {
+  const now = Date.now();
+  for (const [roomId, jam] of activeJams.entries()) {
+    if (jam.status !== 'active') continue;
+
+    // Si la sala está reproduciendo música activamente, actualizar timestamp y mantener viva
+    const isPlaying = jam.currentPlaying && jam.currentPlaying.isPlaying;
+    if (isPlaying) {
+      jam.lastActivityTimestamp = now;
+      continue;
+    }
+
+    // Si han pasado más de 10 minutos sin reproducción ni actividad
+    const idleTime = now - (jam.lastActivityTimestamp || now);
+    if (idleTime >= JAM_INACTIVITY_TIMEOUT_MS) {
+      console.log(`[JAM INACTIVIDAD] Sala ${roomId} (@${jam.hostUsername}) cerrada automaticamente tras 10 minutos sin reproduccion.`);
+      await stopJamSession(roomId, 'sistema_inactividad');
+    }
+  }
+}, 30000);
+
 /**
  * Detiene una sesión JAM activa y notifica a todos los clientes conectados.
  */
@@ -151,10 +223,16 @@ export async function stopJamSession(roomId, requestedBy) {
   const jam = activeJams.get(roomId);
   if (!jam) return false;
 
+  const isTimeout = requestedBy === 'sistema_inactividad';
+  const closeMessage = isTimeout
+    ? 'La sesión JAM se ha cerrado automáticamente por 10 minutos de inactividad (sin reproducción).'
+    : 'La sesión JAM ha sido finalizada por el anfitrión.';
+
   // Notificar cierre a todos los oyentes/invitados
   broadcastToJam(roomId, 'jam_closed', {
     roomId,
-    message: 'La sesión JAM ha sido finalizada por el anfitrión.'
+    reason: isTimeout ? 'inactivity_timeout' : 'host_stopped',
+    message: closeMessage
   });
 
   // Cerrar todas las conexiones SSE activas
@@ -168,6 +246,11 @@ export async function stopJamSession(roomId, requestedBy) {
   jam.status = 'closed';
   jam.closedAt = new Date().toISOString();
   activeJams.delete(roomId);
+
+  // Si se cerró una Jam General, apagar Funnel automáticamente si no hay más salas públicas
+  if (jam.type === 'general') {
+    await disableTailscaleFunnelIfNoActive();
+  }
 
   // Actualizar SQLite
   try {
@@ -362,6 +445,8 @@ export function addTrackToJam(roomId, rawTrack, senderName = 'Invitado', positio
     jam.queueSnapshot.pop();
   }
 
+  jam.lastActivityTimestamp = Date.now();
+
   // Notificar al anfitrión y a todos los invitados vía SSE
   broadcastToJam(roomId, 'track_added', {
     track: queueTrack,
@@ -379,6 +464,8 @@ export function addTrackToJam(roomId, rawTrack, senderName = 'Invitado', positio
 export function updateJamPlayingTrack(roomId, playingTrack) {
   const jam = activeJams.get(roomId);
   if (!jam || jam.status !== 'active') return;
+
+  jam.lastActivityTimestamp = Date.now();
 
   jam.currentPlaying = playingTrack ? {
     hash: playingTrack.hash || playingTrack.trackHash || '',

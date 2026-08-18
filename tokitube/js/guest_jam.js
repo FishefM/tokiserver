@@ -72,13 +72,17 @@ function formatTime(seconds) {
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
-function getCalculatedHostTime(trackData) {
+// Compensación de latencia de red y buffer para invitados (+1.5 segundos / 1s 500ms)
+const GUEST_AUDIO_SYNC_OFFSET_SEC = 1.5;
+
+function getCalculatedHostTime(trackData, applyOffset = false) {
     if (!trackData) return 0;
     const baseTime = typeof trackData.currentTime === 'number' ? trackData.currentTime : 0;
     if (!trackData.isPlaying) return baseTime;
     const elapsedSec = (Date.now() - (trackData.updatedAt || Date.now())) / 1000;
     const durSec = parseDurationToSec(trackData.duration, trackData.durationSec);
-    const total = baseTime + Math.max(0, elapsedSec);
+    const offset = applyOffset ? GUEST_AUDIO_SYNC_OFFSET_SEC : 0;
+    const total = baseTime + Math.max(0, elapsedSec) + offset;
     return durSec > 0 ? Math.min(total, durSec) : total;
 }
 
@@ -111,6 +115,17 @@ function init() {
     // Botón de sincronización de audio (Activar/Desactivar)
     if (btnToggleSyncAudio) {
         btnToggleSyncAudio.addEventListener('click', handleSyncToggleClick);
+    }
+
+    if (syncAudioEl) {
+        syncAudioEl.addEventListener('loadedmetadata', () => {
+            if (currentPlayingData && isAudioSyncEnabled) {
+                const target = getCalculatedHostTime(currentPlayingData, true);
+                try {
+                    syncAudioEl.currentTime = target;
+                } catch (e) {}
+            }
+        });
     }
 
     // Inicializar buscador
@@ -208,10 +223,11 @@ async function syncAudioPlayback(trackData) {
         syncAudioEl.src = expectedSrc;
     }
 
-    const targetTime = getCalculatedHostTime(trackData);
+    // Posición con adelanto de +1.5 segundos para compensar latencia de red y buffering
+    const targetTime = getCalculatedHostTime(trackData, true);
 
-    // Corregir desfase de tiempo si es mayor a 2 segundos
-    if (Math.abs(syncAudioEl.currentTime - targetTime) > 2) {
+    // Corregir desfase de tiempo si es mayor a 1.2 segundos
+    if (Math.abs(syncAudioEl.currentTime - targetTime) > 1.2) {
         try {
             syncAudioEl.currentTime = targetTime;
         } catch (e) {}
@@ -266,10 +282,15 @@ function connectSSE() {
         } catch (err) {}
     });
 
-    sseConnection.addEventListener('jam_closed', () => {
-        showToast('La sesión JAM ha finalizado.');
+    sseConnection.addEventListener('jam_closed', (e) => {
+        let msg = 'La sesión JAM ha finalizado.';
+        try {
+            const data = JSON.parse(e.data);
+            if (data.message) msg = data.message;
+        } catch (err) {}
+        showToast(msg);
         if (npTitleEl) npTitleEl.textContent = 'SESIÓN FINALIZADA';
-        if (npArtistEl) npArtistEl.textContent = 'El anfitrión ha cerrado la Jam';
+        if (npArtistEl) npArtistEl.textContent = msg;
         if (syncAudioEl) {
             syncAudioEl.pause();
             syncAudioEl.removeAttribute('src');
