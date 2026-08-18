@@ -381,13 +381,18 @@ export function updateJamPlayingTrack(roomId, playingTrack) {
   if (!jam || jam.status !== 'active') return;
 
   jam.currentPlaying = playingTrack ? {
-    title: playingTrack.title,
-    artist: playingTrack.artist,
+    hash: playingTrack.hash || playingTrack.trackHash || '',
+    title: playingTrack.title || 'Pista sin título',
+    artist: playingTrack.artist || 'Artista Desconocido',
     duration: playingTrack.duration || '--:--',
+    durationSec: typeof playingTrack.durationSec === 'number' ? playingTrack.durationSec : 0,
     thumbnail: playingTrack.thumbnail || '',
+    url: playingTrack.url || '',
     format: playingTrack.format || 'WEB',
     sourceType: playingTrack.sourceType || 'web',
-    updatedAt: new Date().toISOString()
+    isPlaying: playingTrack.isPlaying !== false,
+    currentTime: typeof playingTrack.currentTime === 'number' ? playingTrack.currentTime : 0,
+    updatedAt: Date.now()
   } : null;
 
   broadcastToJam(roomId, 'track_changed', {

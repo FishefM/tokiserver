@@ -1,5 +1,5 @@
 /**
- * guest_jam.js - Cliente móvil / web para invitados de TokiTube Jam
+ * guest_jam.js - Cliente móvil / web para invitados de TokiTube Jam con Audio Sincronizado
  */
 
 const params = new URLSearchParams(window.location.search);
@@ -14,6 +14,11 @@ const authUser = getAuthUserName();
 let currentNickname = authUser || localStorage.getItem('tokijam_guest_nick') || `Invitado_${Math.floor(Math.random() * 899 + 100)}`;
 let sseConnection = null;
 
+// Estado de Reproducción Sincronizada
+let isAudioSyncEnabled = false;
+let currentPlayingData = null;
+let progressUpdateTimer = null;
+
 // Elementos DOM
 const roomTitleEl = document.getElementById('jam-room-title');
 const hostTagEl = document.getElementById('jam-host-tag');
@@ -23,6 +28,15 @@ const btnChangeNick = document.getElementById('btn-change-nickname');
 const npTitleEl = document.getElementById('np-title');
 const npArtistEl = document.getElementById('np-artist');
 const npThumbEl = document.getElementById('np-thumbnail');
+const npMiniEqEl = document.getElementById('np-mini-eq');
+const npTimeCurrentEl = document.getElementById('np-time-current');
+const npTimeDurationEl = document.getElementById('np-time-duration');
+const npProgressFillEl = document.getElementById('np-progress-fill');
+
+const btnToggleSyncAudio = document.getElementById('btn-toggle-sync-audio');
+const syncIconIndicator = document.getElementById('sync-icon-indicator');
+const syncBtnLabel = document.getElementById('sync-btn-label');
+const syncAudioEl = document.getElementById('guest-sync-audio');
 
 const searchInput = document.getElementById('guest-search-input');
 const btnSearch = document.getElementById('btn-guest-search');
@@ -39,6 +53,33 @@ export function getBackendUrl() {
         return `${window.location.protocol}//${hostname}:3000`;
     }
     return '';
+}
+
+function parseDurationToSec(durationStr, fallbackSec) {
+    if (typeof fallbackSec === 'number' && fallbackSec > 0) return fallbackSec;
+    if (!durationStr || typeof durationStr !== 'string') return 0;
+    const parts = durationStr.split(':').map(Number);
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    return 0;
+}
+
+function formatTime(seconds) {
+    if (isNaN(seconds) || seconds < 0) return '00:00';
+    const s = Math.floor(seconds);
+    const mins = Math.floor(s / 60);
+    const secs = s % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+function getCalculatedHostTime(trackData) {
+    if (!trackData) return 0;
+    const baseTime = typeof trackData.currentTime === 'number' ? trackData.currentTime : 0;
+    if (!trackData.isPlaying) return baseTime;
+    const elapsedSec = (Date.now() - (trackData.updatedAt || Date.now())) / 1000;
+    const durSec = parseDurationToSec(trackData.duration, trackData.durationSec);
+    const total = baseTime + Math.max(0, elapsedSec);
+    return durSec > 0 ? Math.min(total, durSec) : total;
 }
 
 function init() {
@@ -67,7 +108,12 @@ function init() {
         });
     }
 
-    // Inicializar búsqueda
+    // Botón de sincronización de audio (Activar/Desactivar)
+    if (btnToggleSyncAudio) {
+        btnToggleSyncAudio.addEventListener('click', handleSyncToggleClick);
+    }
+
+    // Inicializar buscador
     if (btnSearch && searchInput) {
         btnSearch.addEventListener('click', () => doSearch(searchInput.value));
         searchInput.addEventListener('keydown', (e) => {
@@ -75,7 +121,111 @@ function init() {
         });
     }
 
+    // Timer periódico de actualización de la barra de progreso en vivo
+    if (progressUpdateTimer) clearInterval(progressUpdateTimer);
+    progressUpdateTimer = setInterval(updateLiveProgressBar, 400);
+
     connectSSE();
+}
+
+async function handleSyncToggleClick() {
+    isAudioSyncEnabled = !isAudioSyncEnabled;
+    updateSyncButtonUI();
+
+    if (isAudioSyncEnabled) {
+        showToast('Reproducción sincronizada activada');
+        if (currentPlayingData) {
+            await syncAudioPlayback(currentPlayingData);
+        }
+    } else {
+        showToast('Audio en silencio');
+        if (syncAudioEl) {
+            syncAudioEl.pause();
+        }
+    }
+}
+
+function updateSyncButtonUI() {
+    if (!btnToggleSyncAudio) return;
+
+    if (isAudioSyncEnabled) {
+        btnToggleSyncAudio.classList.add('active');
+        if (syncIconIndicator) {
+            syncIconIndicator.className = 'sync-indicator-dot on';
+        }
+        if (syncBtnLabel) {
+            syncBtnLabel.textContent = '[AUDIO EN VIVO: SINCRONIZADO (ON)]';
+        }
+    } else {
+        btnToggleSyncAudio.classList.remove('active');
+        if (syncIconIndicator) {
+            syncIconIndicator.className = 'sync-indicator-dot off';
+        }
+        if (syncBtnLabel) {
+            syncBtnLabel.textContent = '[AUDIO EN VIVO: EN SILENCIO (OFF)]';
+        }
+    }
+}
+
+function updateLiveProgressBar() {
+    if (!currentPlayingData) {
+        if (npTimeCurrentEl) npTimeCurrentEl.textContent = '00:00';
+        if (npProgressFillEl) npProgressFillEl.style.width = '0%';
+        return;
+    }
+
+    const durSec = parseDurationToSec(currentPlayingData.duration, currentPlayingData.durationSec);
+    let currTime = 0;
+
+    if (isAudioSyncEnabled && syncAudioEl && !syncAudioEl.paused && syncAudioEl.currentTime > 0) {
+        currTime = syncAudioEl.currentTime;
+    } else {
+        currTime = getCalculatedHostTime(currentPlayingData);
+    }
+
+    if (npTimeCurrentEl) npTimeCurrentEl.textContent = formatTime(currTime);
+    if (npTimeDurationEl) npTimeDurationEl.textContent = currentPlayingData.duration || '--:--';
+
+    if (npProgressFillEl) {
+        const percent = durSec > 0 ? Math.min(100, (currTime / durSec) * 100) : 0;
+        npProgressFillEl.style.width = `${percent}%`;
+    }
+}
+
+async function syncAudioPlayback(trackData) {
+    if (!isAudioSyncEnabled || !syncAudioEl || !trackData) return;
+
+    const hash = trackData.hash || trackData.trackHash;
+    if (!hash) {
+        syncAudioEl.pause();
+        return;
+    }
+
+    const expectedSrc = `${getBackendUrl()}/api/tokitube/stream/${encodeURIComponent(hash)}?url=${encodeURIComponent(trackData.url || '')}`;
+    
+    // Si la pista cambió, actualizar src
+    if (!syncAudioEl.src || !syncAudioEl.src.includes(encodeURIComponent(hash))) {
+        syncAudioEl.src = expectedSrc;
+    }
+
+    const targetTime = getCalculatedHostTime(trackData);
+
+    // Corregir desfase de tiempo si es mayor a 2 segundos
+    if (Math.abs(syncAudioEl.currentTime - targetTime) > 2) {
+        try {
+            syncAudioEl.currentTime = targetTime;
+        } catch (e) {}
+    }
+
+    if (trackData.isPlaying) {
+        try {
+            await syncAudioEl.play();
+        } catch (err) {
+            console.warn('[GUEST AUDIO AUTOPLAY BLOCKED]', err);
+        }
+    } else {
+        syncAudioEl.pause();
+    }
 }
 
 function connectSSE() {
@@ -96,8 +246,10 @@ function connectSSE() {
     sseConnection.addEventListener('track_changed', (e) => {
         try {
             const data = JSON.parse(e.data);
-            if (data.currentPlaying) {
-                updateNowPlayingUI(data.currentPlaying);
+            currentPlayingData = data.currentPlaying;
+            updateNowPlayingUI(data.currentPlaying);
+            if (isAudioSyncEnabled) {
+                syncAudioPlayback(data.currentPlaying);
             }
         } catch (err) {}
     });
@@ -116,8 +268,13 @@ function connectSSE() {
 
     sseConnection.addEventListener('jam_closed', () => {
         showToast('La sesión JAM ha finalizado.');
-        if (npTitleEl) npTitleEl.textContent = 'SESION FINALIZADA';
+        if (npTitleEl) npTitleEl.textContent = 'SESIÓN FINALIZADA';
         if (npArtistEl) npArtistEl.textContent = 'El anfitrión ha cerrado la Jam';
+        if (syncAudioEl) {
+            syncAudioEl.pause();
+            syncAudioEl.removeAttribute('src');
+        }
+        if (npMiniEqEl) npMiniEqEl.classList.add('paused');
     });
 
     sseConnection.onerror = () => {
@@ -130,18 +287,21 @@ function applyJamInfo(info) {
         roomTitleEl.textContent = info.type === 'general' ? 'JAM GENERAL' : 'TOKIJAM';
     }
     if (hostTagEl) {
-        hostTagEl.textContent = `ANFITRION: @${(info.hostUsername || 'Host').toUpperCase()}`;
+        hostTagEl.textContent = `ANFITRIÓN: @${(info.hostUsername || 'Host').toUpperCase()}`;
     }
 
-    // Si es TokiJAM y tenemos usuario autenticado, asegurar que se muestre su nombre real
     const loggedUser = getAuthUserName();
     if (info.type === 'tokijam' && loggedUser) {
         currentNickname = loggedUser;
         if (nicknameDisplayEl) nicknameDisplayEl.textContent = loggedUser;
     }
 
+    currentPlayingData = info.currentPlaying;
     if (info.currentPlaying) {
         updateNowPlayingUI(info.currentPlaying);
+        if (isAudioSyncEnabled) {
+            syncAudioPlayback(info.currentPlaying);
+        }
     }
     if (queueCountEl) {
         queueCountEl.textContent = `${info.queueCount || 0} PISTAS`;
@@ -153,17 +313,41 @@ function applyJamInfo(info) {
 }
 
 function updateNowPlayingUI(track) {
-    if (npTitleEl) npTitleEl.textContent = track.title || 'EN REPRODUCCION';
+    if (!track) {
+        if (npTitleEl) npTitleEl.textContent = 'ESPERANDO ANFITRIÓN...';
+        if (npArtistEl) npArtistEl.textContent = 'TokiTube Station';
+        if (npThumbEl) npThumbEl.src = '/toki.jpeg';
+        if (npTimeDurationEl) npTimeDurationEl.textContent = '--:--';
+        if (npTimeCurrentEl) npTimeCurrentEl.textContent = '00:00';
+        if (npProgressFillEl) npProgressFillEl.style.width = '0%';
+        if (npMiniEqEl) npMiniEqEl.classList.add('paused');
+        return;
+    }
+
+    if (npTitleEl) npTitleEl.textContent = track.title || 'EN REPRODUCCIÓN';
     if (npArtistEl) npArtistEl.textContent = track.artist || 'TokiTube Jam';
     if (npThumbEl) {
         npThumbEl.src = track.thumbnail || '/toki.jpeg';
     }
+    if (npTimeDurationEl) {
+        npTimeDurationEl.textContent = track.duration || '--:--';
+    }
+
+    if (npMiniEqEl) {
+        if (track.isPlaying) {
+            npMiniEqEl.classList.remove('paused');
+        } else {
+            npMiniEqEl.classList.add('paused');
+        }
+    }
+
+    updateLiveProgressBar();
 }
 
 function appendQueueItem(track, senderName = 'Invitado') {
     if (!queueListEl) return;
     
-    if (queueListEl.children.length === 1 && queueListEl.textContent.includes('AUN NO HAY')) {
+    if (queueListEl.children.length === 1 && queueListEl.textContent.includes('AÚN NO HAY')) {
         queueListEl.innerHTML = '';
     }
 
@@ -208,7 +392,7 @@ async function doSearch(query) {
                             <div class="guest-result-artist">${item.artist} &bull; ${item.duration || '--:--'}</div>
                         </div>
                     </div>
-                    <button type="button" class="btn-add-jam-queue">+ ANADIR</button>
+                    <button type="button" class="btn-add-jam-queue">+ AÑADIR</button>
                 `;
 
                 const btn = card.querySelector('.btn-add-jam-queue');
@@ -276,7 +460,7 @@ async function queueTrack(track, buttonEl) {
         }
     } catch (err) {
         buttonEl.disabled = false;
-        buttonEl.textContent = '+ ANADIR';
+        buttonEl.textContent = '+ AÑADIR';
         alert(`Error al agregar a la Jam: ${err.message}`);
     }
 }

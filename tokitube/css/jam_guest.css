@@ -158,7 +158,112 @@ body {
     100% { height: 100%; }
 }
 
-/* Search Box */
+.mini-eq.paused span {
+    animation-play-state: paused;
+    height: 25% !important;
+    opacity: 0.5;
+}
+
+/* Barra de Progreso en Vivo Sincronizada */
+.now-playing-progress-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.np-time {
+    font-size: 1.15rem;
+    color: var(--green);
+    min-width: 38px;
+    letter-spacing: 1px;
+}
+
+.np-progress-track {
+    flex: 1;
+    height: 6px;
+    background: #000;
+    border: 1px solid rgba(0, 255, 65, 0.4);
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+}
+
+.np-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--magenta-neon);
+    box-shadow: 0 0 8px var(--magenta-glow);
+    transition: width 0.3s linear;
+}
+
+/* Control de Audio Sincronizado */
+.now-playing-sync-control {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 2px;
+}
+
+.btn-sync-audio {
+    background: rgba(0, 20, 10, 0.9);
+    border: 1px solid rgba(0, 255, 65, 0.5);
+    color: var(--green);
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 1.25rem;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    letter-spacing: 1px;
+    transition: all 0.2s ease;
+}
+
+.btn-sync-audio:hover {
+    background: rgba(0, 255, 65, 0.12);
+    border-color: var(--green);
+    box-shadow: 0 0 10px var(--green-glow);
+}
+
+.btn-sync-audio.active {
+    background: rgba(255, 0, 127, 0.15);
+    border-color: var(--magenta-neon);
+    color: #fff;
+    box-shadow: 0 0 15px var(--magenta-glow);
+}
+
+.sync-indicator-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.sync-indicator-dot.off {
+    background: #666;
+}
+
+.sync-indicator-dot.on {
+    background: var(--green);
+    box-shadow: 0 0 10px var(--green);
+    animation: syncDotPulse 1.2s infinite ease-in-out;
+}
+
+@keyframes syncDotPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+.sync-helper-text {
+    font-size: 0.95rem;
+    opacity: 0.7;
+    text-align: center;
+    color: var(--green);
+}
 .guest-search-section {
     background: var(--card-bg);
     border: 2px solid var(--green);

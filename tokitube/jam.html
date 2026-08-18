@@ -25,8 +25,8 @@
         <!-- Pista Sonando Actualmente -->
         <section class="now-playing-card" id="now-playing-section">
             <div class="card-header-badge">
-                <span id="jam-host-tag">ANFITRIÓN: @YUCEF</span>
-                <div class="mini-eq">
+                <span id="jam-host-tag">ANFITRIÓN: @HOST</span>
+                <div class="mini-eq" id="np-mini-eq">
                     <span></span><span></span><span></span><span></span>
                 </div>
             </div>
@@ -37,6 +37,25 @@
                     <div class="now-playing-artist" id="np-artist">TokiTube Station</div>
                 </div>
             </div>
+
+            <!-- Barra de Progreso en Vivo Sincronizada -->
+            <div class="now-playing-progress-wrap">
+                <span id="np-time-current" class="np-time">00:00</span>
+                <div class="np-progress-track">
+                    <div id="np-progress-fill" class="np-progress-fill"></div>
+                </div>
+                <span id="np-time-duration" class="np-time">--:--</span>
+            </div>
+
+            <!-- Control de Reproducción Sincronizada de Audio -->
+            <div class="now-playing-sync-control">
+                <button type="button" id="btn-toggle-sync-audio" class="btn-sync-audio" title="Activar/Desactivar reproducción sincronizada en este dispositivo">
+                    <span id="sync-icon-indicator" class="sync-indicator-dot off"></span>
+                    <span id="sync-btn-label">[AUDIO EN VIVO: EN SILENCIO (OFF)]</span>
+                </button>
+                <div class="sync-helper-text" id="sync-helper-text">Por defecto en silencio. Toca para escuchar en vivo sincronizado con el anfitrión.</div>
+            </div>
+            <audio id="guest-sync-audio" preload="none"></audio>
         </section>
 
         <!-- Buscador de Canciones YouTube/Web -->

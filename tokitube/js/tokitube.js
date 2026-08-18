@@ -619,9 +619,24 @@ function setupEventListeners() {
     document.addEventListener('dorocoro:track-loaded', (e) => {
         const track = e.detail?.track;
         if (track) {
-            syncJamCurrentPlaying(track);
+            syncJamCurrentPlaying(track, true, 0);
         }
     });
+
+    if (dom.audio) {
+        dom.audio.addEventListener('play', () => {
+            const track = currentQueue[currentIndex];
+            if (track) syncJamCurrentPlaying(track, true, dom.audio.currentTime);
+        });
+        dom.audio.addEventListener('pause', () => {
+            const track = currentQueue[currentIndex];
+            if (track) syncJamCurrentPlaying(track, false, dom.audio.currentTime);
+        });
+        dom.audio.addEventListener('seeked', () => {
+            const track = currentQueue[currentIndex];
+            if (track) syncJamCurrentPlaying(track, !dom.audio.paused, dom.audio.currentTime);
+        });
+    }
 
     document.addEventListener('dorocoro:track-relinked', (e) => {
         const updatedTrack = e.detail?.track;

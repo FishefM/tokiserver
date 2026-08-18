@@ -443,19 +443,29 @@ function connectHostSSE(roomId) {
 /**
  * Sincroniza la pista que el anfitrión está reproduciendo actualmente hacia todos los invitados.
  */
-export function syncJamCurrentPlaying(track) {
+export function syncJamCurrentPlaying(track, isPlayingVal, currentTimeVal) {
     if (!activeJamData || !activeJamData.roomId) return;
+
+    const audioEl = dom.audio;
+    const isPlaying = (typeof isPlayingVal === 'boolean') ? isPlayingVal : (audioEl ? !audioEl.paused : false);
+    const currentTime = (typeof currentTimeVal === 'number') ? currentTimeVal : (audioEl ? audioEl.currentTime : 0);
 
     apiFetch(`/jam/sync-now-playing/${activeJamData.roomId}`, {
         method: 'POST',
         body: JSON.stringify({
             currentPlaying: track ? {
+                hash: track.hash || track.trackHash || '',
                 title: track.title,
                 artist: track.artist,
                 duration: track.duration,
+                durationSec: audioEl?.duration || track.durationSec || 0,
                 thumbnail: track.thumbnail || '',
+                url: track.url || track.webUrl || '',
                 format: track.format,
-                sourceType: track.sourceType
+                sourceType: track.sourceType,
+                isPlaying: isPlaying,
+                currentTime: currentTime,
+                updatedAt: Date.now()
             } : null
         })
     }).catch(() => {});
