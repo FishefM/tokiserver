@@ -32,8 +32,11 @@ function isInternalOrTailscaleIp(ip) {
  */
 export function autoBanShield(req, res, next) {
   const clientIp = getClientIp(req);
-  const now = Date.now();
+  if (isInternalOrTailscaleIp(clientIp)) {
+    return next();
+  }
 
+  const now = Date.now();
   if (bannedIps.has(clientIp)) {
     const banExpires = bannedIps.get(clientIp);
     if (now < banExpires) {
@@ -53,10 +56,9 @@ export const BLOCKED_EXPLOIT_PATTERNS = [
   /^\/\.ssh/i,
   /^\/\.vscode/i,
   /^\/\.yarn/i,
-  /^\/server\//i,
   /^\/node_modules\//i,
-  /\.(php|asp|aspx|jsp|cgi|exe|sql|db|key|pem|env|bak|old|swp|lock|yaml|yml|sh|py|config|ini)$/i,
-  /^\/(package\.json|package-lock\.json|config\.json|tsconfig\.json)$/i,
+  /\.(php|asp|aspx|jsp|cgi|sql|db|key|pem|env|bak|old|swp|yaml|yml|sh|py|ini)$/i,
+  /^\/(package\.json|package-lock\.json|tsconfig\.json)$/i,
   /^\/(actuator|kibana|_cat|debug|swagger|openapi|graphql|___proxy_subdomain)/i
 ];
 
@@ -64,26 +66,32 @@ export const BLOCKED_EXPLOIT_PATTERNS = [
  * Middleware de detección de escaneos y auto-ban tras infracciones consecutivas.
  */
 export function exploitScannerShield(req, res, next) {
-  const reqPath = req.path;
   const clientIp = getClientIp(req);
+  if (isInternalOrTailscaleIp(clientIp)) {
+    return next();
+  }
+
+  const reqPath = req.path || '';
 
   for (const pattern of BLOCKED_EXPLOIT_PATTERNS) {
     if (pattern.test(reqPath)) {
       const now = Date.now();
       let record = violationCounts.get(clientIp) || { count: 0, firstViolation: now };
 
-      // Reiniciar contador si la primera infracción ocurrió hace más de 10 minutos
-      if (now - record.firstViolation > 10 * 60 * 1000) {
+      // Reiniciar contador si la primera infracción ocurrió hace más de 5 minutos
+      if (now - record.firstViolation > 5 * 60 * 1000) {
         record = { count: 0, firstViolation: now };
       }
 
       record.count += 1;
       violationCounts.set(clientIp, record);
 
-      // Si supera 5 intentos de exploit, banear por 30 minutos
-      if (record.count >= 5) {
-        bannedIps.set(clientIp, now + 30 * 60 * 1000);
-        console.warn(`[AUTO-BAN JAIL] IP ${clientIp} bloqueada por 30 minutos tras ${record.count} intentos de exploit.`);
+      console.warn(`[EXPLOIT SCANNER] IP externa ${clientIp} intentó acceder a "${reqPath}" (coincidió con regla ${pattern}). Infracciones: ${record.count}/15`);
+
+      // Si supera 15 intentos de exploit sospechosos en 5 minutos, banear por 15 minutos
+      if (record.count >= 15) {
+        bannedIps.set(clientIp, now + 15 * 60 * 1000);
+        console.warn(`[AUTO-BAN JAIL] IP ${clientIp} bloqueada por 15 minutos tras ${record.count} intentos de exploit.`);
       }
 
       return res.status(403).send('Forbidden');

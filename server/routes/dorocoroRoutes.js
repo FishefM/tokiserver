@@ -15,10 +15,15 @@ import {
   renameDorocoroPlaylist,
   deleteDorocoroPlaylist,
   addTrackToDorocoroPlaylist,
+  addTracksToDorocoroPlaylist,
   removeTrackFromDorocoroPlaylist,
   deleteDorocoroTrack,
   clearAllDorocoroUserData,
-  purgeStaleDriveTracks
+  purgeStaleDriveTracks,
+  getUserSpotifyAccount,
+  deleteUserSpotifyAccount,
+  saveUserSpotifyAccount,
+  getDorocoroPlaylistById
 } from '../db.js';
 import {
   searchWebAudio,
@@ -26,6 +31,14 @@ import {
   getTrackAudioPath,
   extractPlaylistFromUrl
 } from '../services/ytDlpService.js';
+import {
+  generateOAuthState,
+  verifyOAuthState,
+  getSpotifyAuthorizeUrl,
+  exchangeCodeForTokens,
+  fetchSpotifyUserProfile,
+  fetchUserSpotifyPlaylists
+} from '../services/spotifyAuthService.js';
 import {
   startJamSession,
   stopJamSession,
@@ -73,21 +86,21 @@ const uploadDriveMusic = multer({
 
 const router = express.Router();
 
-// Middleware de identificación de usuario (admite sesión autenticada o perfil local)
+// Middleware de identificación de usuario (admite sesión autenticada, perfil local o parámetros de URL)
 function resolveDorocoroUser(req) {
   const authHeader = req.headers['authorization'];
   const token = (authHeader && authHeader.startsWith('Bearer '))
     ? authHeader.slice(7)
-    : req.headers['x-auth-token'];
+    : (req.headers['x-auth-token'] || req.query?.token);
 
   if (token) {
     const session = verifySession(token);
     if (session && session.username) {
-      return session.username;
+      return session.username.toLowerCase();
     }
   }
 
-  const customUser = req.headers['x-user'];
+  const customUser = req.headers['x-user'] || req.query?.user;
   if (customUser && typeof customUser === 'string' && customUser.trim()) {
     return customUser.trim().toLowerCase();
   }
@@ -327,13 +340,13 @@ router.post('/tracks/sync', async (req, res) => {
 
 /**
  * PUT /api/dorocoro/tracks/:hash
- * Actualiza etiquetas (título, artista, álbum) de una canción.
+ * Actualiza etiquetas (título, artista, álbum) y enlace web/origen de una canción.
  */
 router.put('/tracks/:hash', async (req, res) => {
   try {
     const { hash } = req.params;
-    const { title, artist, album } = req.body;
-    const result = await updateDorocoroTrackMeta(req.user, hash, { title, artist, album });
+    const { title, artist, album, webUrl, sourceType } = req.body;
+    const result = await updateDorocoroTrackMeta(req.user, hash, { title, artist, album, webUrl, sourceType });
     res.json({ success: true, changes: result.changes });
   } catch (err) {
     console.error('[DOROCORO API] Error al actualizar etiquetas:', err);
@@ -520,12 +533,12 @@ router.post('/tracks/:hash/favorite', async (req, res) => {
  */
 router.post('/playlists', async (req, res) => {
   try {
-    const { id, name } = req.body;
+    const { id, name, sourceUrl } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ success: false, error: 'El nombre de la lista es requerido.' });
     }
     const playlistId = id || `pl_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    const result = await createDorocoroPlaylist(req.user, playlistId, name.trim());
+    const result = await createDorocoroPlaylist(req.user, playlistId, name.trim(), sourceUrl);
     res.json({ success: true, playlist: result });
   } catch (err) {
     console.error('[DOROCORO API] Error al crear lista:', err);
@@ -544,31 +557,32 @@ router.post('/playlists/import-web', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Se requiere una URL válida de YouTube para importar.' });
     }
 
-    const extracted = await extractPlaylistFromUrl(url.trim());
+    const extracted = await extractPlaylistFromUrl(url.trim(), req.user);
     if (!extracted || !Array.isArray(extracted.tracks) || extracted.tracks.length === 0) {
       return res.status(404).json({ success: false, error: 'No se encontraron pistas de audio en el enlace provisto o la lista es privada.' });
     }
 
     const playlistName = (name && name.trim()) ? name.trim() : (extracted.playlistTitle || 'Lista Importada de YouTube');
     const playlistId = `pl_yt_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+    const sourceUrl = url.trim();
 
     // 1. Sincronizar metadatos de pistas encontradas hacia SQLite
     await syncDorocoroTracks(req.user, extracted.tracks);
 
-    // 2. Crear la lista en SQLite
-    await createDorocoroPlaylist(req.user, playlistId, playlistName);
+    // 2. Crear la lista en SQLite guardando su sourceUrl
+    await createDorocoroPlaylist(req.user, playlistId, playlistName, sourceUrl);
 
-    // 3. Asociar cada una de las canciones a la lista
-    for (const trk of extracted.tracks) {
-      await addTrackToDorocoroPlaylist(req.user, playlistId, trk.trackHash);
-    }
+    // 3. Asociar todas las canciones a la lista en lote
+    const trackHashes = extracted.tracks.map(t => t.trackHash);
+    await addTracksToDorocoroPlaylist(req.user, playlistId, trackHashes);
 
     res.json({
       success: true,
       playlist: {
         id: playlistId,
         name: playlistName,
-        trackHashes: extracted.tracks.map(t => t.trackHash)
+        sourceUrl,
+        trackHashes
       },
       tracks: extracted.tracks,
       importedCount: extracted.tracks.length
@@ -576,6 +590,94 @@ router.post('/playlists/import-web', async (req, res) => {
   } catch (err) {
     console.error('[DOROCORO API] Error al importar playlist web:', err);
     res.status(500).json({ success: false, error: 'Error interno al procesar la lista de YouTube: ' + err.message });
+  }
+});
+
+/**
+ * POST /api/tokitube/playlists/:id/sync-source
+ * Sincroniza y añade únicamente las canciones NUEVAS de la lista fuente (YouTube / Spotify),
+ * conservando 100% intactas las canciones que ya existían y sus enlaces personalizados en TokiTube.
+ */
+router.post('/playlists/:id/sync-source', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const playlist = await getDorocoroPlaylistById(req.user, id);
+    if (!playlist) {
+      return res.status(404).json({ success: false, error: 'Lista de reproducción no encontrada.' });
+    }
+    if (!playlist.sourceUrl || !playlist.sourceUrl.trim()) {
+      return res.status(400).json({ success: false, error: 'Esta lista no fue importada desde una URL fuente (es una lista manual).' });
+    }
+
+    console.log(`[DOROCORO SYNC] Sincronizando lista "${playlist.name}" desde fuente: ${playlist.sourceUrl}`);
+
+    // 1. Extraer el contenido actual de la lista fuente
+    const extracted = await extractPlaylistFromUrl(playlist.sourceUrl.trim(), req.user);
+    if (!extracted || !Array.isArray(extracted.tracks) || extracted.tracks.length === 0) {
+      return res.status(404).json({ success: false, error: 'No se pudieron extraer canciones desde la URL fuente o la lista ya no existe.' });
+    }
+
+    // 2. Obtener identificadores de pistas que YA existen en la lista de TokiTube
+    const existingTracks = playlist.tracks || [];
+    const existingHashes = new Set(existingTracks.map(t => t.trackHash));
+    const existingWebUrls = new Set(
+      existingTracks
+        .map(t => t.webUrl)
+        .filter(u => u && typeof u === 'string')
+        .map(u => u.trim().toLowerCase())
+    );
+    const existingTitlesAndArtists = new Set(
+      existingTracks.map(t => `${(t.title || '').trim().toLowerCase()}|||${(t.artist || '').trim().toLowerCase()}`)
+    );
+
+    // 3. Filtrar estrictamente solo las pistas NUEVAS
+    const newTracks = [];
+    for (const track of extracted.tracks) {
+      const normTitleArtist = `${(track.title || '').trim().toLowerCase()}|||${(track.artist || '').trim().toLowerCase()}`;
+      const normWebUrl = (track.webUrl || '').trim().toLowerCase();
+
+      const isHashDuplicate = existingHashes.has(track.trackHash);
+      const isUrlDuplicate = normWebUrl && existingWebUrls.has(normWebUrl);
+      const isTitleDuplicate = existingTitlesAndArtists.has(normTitleArtist);
+
+      if (!isHashDuplicate && !isUrlDuplicate && !isTitleDuplicate) {
+        newTracks.push(track);
+        // Evitar duplicados dentro del mismo lote
+        existingHashes.add(track.trackHash);
+        if (normWebUrl) existingWebUrls.add(normWebUrl);
+        existingTitlesAndArtists.add(normTitleArtist);
+      }
+    }
+
+    if (newTracks.length === 0) {
+      return res.json({
+        success: true,
+        addedCount: 0,
+        addedTracks: [],
+        totalCount: existingTracks.length,
+        message: 'La lista ya está completamente al día con la fuente. No hay canciones nuevas.'
+      });
+    }
+
+    // 4. Sincronizar metadatos de las pistas nuevas hacia SQLite
+    await syncDorocoroTracks(req.user, newTracks);
+
+    // 5. Añadir las canciones nuevas al final de la lista en SQLite
+    const newTrackHashes = newTracks.map(t => t.trackHash);
+    await addTracksToDorocoroPlaylist(req.user, id, newTrackHashes);
+
+    console.log(`[DOROCORO SYNC OK] "${playlist.name}": +${newTracks.length} pistas añadidas (${existingTracks.length} existentes conservadas).`);
+
+    res.json({
+      success: true,
+      addedCount: newTracks.length,
+      addedTracks: newTracks,
+      totalCount: existingTracks.length + newTracks.length,
+      message: `Se sincronizaron y agregaron ${newTracks.length} canciones nuevas exitosamente.`
+    });
+  } catch (err) {
+    console.error('[DOROCORO API] Error al sincronizar playlist con fuente:', err);
+    res.status(500).json({ success: false, error: 'Error al sincronizar lista con la fuente: ' + err.message });
   }
 });
 
@@ -790,10 +892,177 @@ router.get('/jam/qr', async (req, res) => {
         light: '#05070a'
       }
     });
-    res.setHeader('Content-Type', 'image/svg+xml');
-    res.send(svg);
   } catch (err) {
     res.status(500).send('Error al generar QR');
+  }
+});
+
+function renderAuthPopupResult(success, message) {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>TokiTube - Spotify Auth</title>
+  <style>
+    body {
+      background: #0d021a;
+      color: ${success ? '#00ff41' : '#ff0033'};
+      font-family: 'Courier New', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      text-align: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .box {
+      border: 2px solid ${success ? '#00ff41' : '#ff0033'};
+      padding: 24px;
+      background: rgba(0,0,0,0.7);
+      max-width: 420px;
+      box-shadow: 0 0 20px ${success ? 'rgba(0,255,65,0.2)' : 'rgba(255,0,51,0.2)'};
+    }
+    h2 { margin-top: 0; font-size: 1.25rem; letter-spacing: 1px; }
+    p { font-size: 0.95rem; color: #fff; line-height: 1.4; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>${success ? '[AUTH EXITOSA]' : '[ERROR DE AUTENTICACION]'}</h2>
+    <p>${message}</p>
+    <p style="font-size: 0.85rem; color: rgba(255,255,255,0.6); margin-top: 16px;">Cerrando ventana de autenticacion...</p>
+  </div>
+  <script>
+    if (window.opener) {
+      window.opener.postMessage({ type: 'SPOTIFY_AUTH_RESULT', success: ${success}, message: ${JSON.stringify(message)} }, '*');
+      setTimeout(() => window.close(), 1200);
+    } else {
+      setTimeout(() => { window.location.href = '/tokitube'; }, 2000);
+    }
+  </script>
+</body>
+</html>`;
+}
+
+/**
+ * GET /api/tokitube/spotify/login
+ * Inicia el flujo de autenticación OAuth 2.0 con Spotify
+ */
+router.get('/spotify/login', (req, res) => {
+  try {
+    const user = req.user || 'admin';
+    const state = generateOAuthState(user);
+    const host = req.get('host');
+    const protocol = req.protocol;
+    const redirectUri = `${protocol}://${host}/api/tokitube/spotify/callback`;
+    const authUrl = getSpotifyAuthorizeUrl(state, redirectUri);
+
+    if (!authUrl) {
+      return res.status(500).send('Credenciales de Spotify (SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET) no configuradas.');
+    }
+
+    res.redirect(authUrl);
+  } catch (err) {
+    console.error('[SPOTIFY LOGIN ERROR]', err);
+    res.status(500).send('Error al iniciar autenticación con Spotify: ' + err.message);
+  }
+});
+
+/**
+ * GET /api/tokitube/spotify/callback
+ * Recibe el código de autorización de Spotify y guarda tokens en SQLite
+ */
+router.get('/spotify/callback', async (req, res) => {
+  try {
+    const { code, state, error } = req.query;
+    if (error) {
+      return res.send(renderAuthPopupResult(false, 'Autorización denegada por el usuario en Spotify.'));
+    }
+    if (!code || !state) {
+      return res.send(renderAuthPopupResult(false, 'Parámetros de retorno OAuth inválidos.'));
+    }
+
+    const username = verifyOAuthState(state);
+    if (!username) {
+      return res.send(renderAuthPopupResult(false, 'La sesión o token de validación expiró. Intenta nuevamente.'));
+    }
+
+    const host = req.get('host');
+    const protocol = req.protocol;
+    const redirectUri = `${protocol}://${host}/api/tokitube/spotify/callback`;
+
+    const tokens = await exchangeCodeForTokens(code, redirectUri);
+    const profile = await fetchSpotifyUserProfile(tokens.accessToken);
+
+    await saveUserSpotifyAccount(username, {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      expiresAt: tokens.expiresAt,
+      spotifyUserId: profile?.spotifyUserId || '',
+      spotifyDisplayName: profile?.spotifyDisplayName || 'Spotify User',
+      spotifyAvatar: profile?.spotifyAvatar || ''
+    });
+
+    console.log(`[SPOTIFY LINK OK] Usuario "${username}" vinculó su cuenta de Spotify (${profile?.spotifyDisplayName}).`);
+    res.send(renderAuthPopupResult(true, `Cuenta de Spotify vinculada exitosamente (${profile?.spotifyDisplayName || username}).`));
+  } catch (err) {
+    console.error('[SPOTIFY CALLBACK ERROR]', err);
+    res.send(renderAuthPopupResult(false, 'Error al vincular cuenta de Spotify: ' + err.message));
+  }
+});
+
+/**
+ * GET /api/tokitube/spotify/status
+ * Consulta si el usuario actual tiene vinculada su cuenta de Spotify
+ */
+router.get('/spotify/status', async (req, res) => {
+  try {
+    const account = await getUserSpotifyAccount(req.user);
+    if (!account || !account.accessToken) {
+      return res.json({ success: true, connected: false });
+    }
+    res.json({
+      success: true,
+      connected: true,
+      spotifyDisplayName: account.spotifyDisplayName || 'Usuario Spotify',
+      spotifyUserId: account.spotifyUserId || '',
+      spotifyAvatar: account.spotifyAvatar || null,
+      linkedAt: account.linkedAt
+    });
+  } catch (err) {
+    console.error('[SPOTIFY STATUS ERROR]', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * GET /api/tokitube/spotify/my-playlists
+ * Obtiene las playlists del usuario autenticado en Spotify
+ */
+router.get('/spotify/my-playlists', async (req, res) => {
+  try {
+    const result = await fetchUserSpotifyPlaylists(req.user);
+    res.json(result);
+  } catch (err) {
+    console.error('[SPOTIFY MY-PLAYLISTS ERROR]', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * POST /api/tokitube/spotify/unlink
+ * Desvincula la cuenta de Spotify del usuario actual
+ */
+router.post('/spotify/unlink', async (req, res) => {
+  try {
+    const result = await deleteUserSpotifyAccount(req.user);
+    res.json({ success: true, unlinked: result.unlinked });
+  } catch (err) {
+    console.error('[SPOTIFY UNLINK ERROR]', err);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

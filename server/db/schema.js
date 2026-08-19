@@ -90,11 +90,19 @@ export function initSchema(db) {
         id TEXT NOT NULL,
         username TEXT NOT NULL,
         name TEXT NOT NULL,
+        sourceUrl TEXT,
         createdAt TEXT NOT NULL,
         updatedAt TEXT,
         PRIMARY KEY (id, username)
       );
     `);
+
+    // Migración dinámica: asegurar columna sourceUrl
+    db.all("PRAGMA table_info(dorocoro_playlists)", (err, cols) => {
+      if (!err && cols && !cols.some(c => c.name === 'sourceUrl')) {
+        db.run("ALTER TABLE dorocoro_playlists ADD COLUMN sourceUrl TEXT;");
+      }
+    });
 
     // Tabla intermedia para canciones dentro de listas de reproducción
     db.run(`
@@ -118,6 +126,20 @@ export function initSchema(db) {
         funnelUrl TEXT,
         createdAt TEXT NOT NULL,
         closedAt TEXT
+      );
+    `);
+
+    // Tabla de cuentas de Spotify vinculadas por usuario (OAuth2)
+    db.run(`
+      CREATE TABLE IF NOT EXISTS dorocoro_spotify_accounts (
+        username TEXT PRIMARY KEY,
+        accessToken TEXT NOT NULL,
+        refreshToken TEXT NOT NULL,
+        expiresAt INTEGER NOT NULL,
+        spotifyUserId TEXT,
+        spotifyDisplayName TEXT,
+        spotifyAvatar TEXT,
+        linkedAt TEXT NOT NULL
       );
     `);
   });

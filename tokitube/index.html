@@ -62,6 +62,9 @@
                     <span>TOKITUBE.EXE</span>
                 </div>
                 <div class="window-controls">
+                    <button type="button" class="win-btn" id="btn-win-spotify" title="Vincular o Gestionar Cuenta de Spotify" style="display: none; font-size: 0.75rem; padding: 2px 6px; color: var(--green); border-color: rgba(0, 255, 65, 0.4); margin-right: 4px;">
+                        [SPOTIFY]
+                    </button>
                     <button type="button" class="win-btn win-btn-jam" id="btn-win-jam" title="Sesión Colaborativa JAM">
                         <span class="pixel-icon-mask magenta" style="-webkit-mask-image: url('/img/icons/zap.svg'); mask-image: url('/img/icons/zap.svg'); width: 13px; height: 13px;"></span>
                         <span>JAM</span>
@@ -85,7 +88,7 @@
                             <div class="screen-header-info">
                                 <span class="tag-badge" id="track-format-badge">STEREO / FLAC</span>
                                 <span class="tag-badge" id="track-rate-badge">44.1 kHz</span>
-                                <span class="tag-badge jam-active" id="jam-deck-indicator" style="display: none; border-color: var(--magenta-neon); color: var(--magenta-neon);">⚡ JAM</span>
+                                <span class="tag-badge jam-active" id="jam-deck-indicator" style="display: none; border-color: var(--magenta-neon); color: var(--magenta-neon);">[JAM ACTIVE]</span>
                             </div>
                             
                             <div class="track-meta">
@@ -189,7 +192,13 @@
                                     <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/playlist.svg'); mask-image: url('/img/icons/playlist.svg'); width: 18px; height: 18px;"></span>
                                     <span id="playlist-current-title">BIBLIOTECA LOCAL</span>
                                 </h3>
-                                <span class="playlist-counter-badge" id="tracks-count-badge">0 PISTAS</span>
+                                <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+                                    <button type="button" class="btn-pl-action" id="btn-sync-playlist" title="Sincronizar nuevas canciones de la lista fuente (YouTube / Spotify)" style="display: none; border-color: var(--magenta-neon); color: var(--magenta-neon); padding: 2px 8px; font-size: 0.8rem; height: 24px;">
+                                        <span class="pixel-icon-mask magenta" style="-webkit-mask-image: url('/img/icons/repeat.svg'); mask-image: url('/img/icons/repeat.svg'); width: 12px; height: 12px;"></span>
+                                        <span>SYNC</span>
+                                    </button>
+                                    <span class="playlist-counter-badge" id="tracks-count-badge">0 PISTAS</span>
+                                </div>
                             </div>
 
                             <!-- Barra de Selección y Gestión de Listas de Reproducción -->
@@ -200,9 +209,8 @@
                                     <option value="favorites">[FAVORITAS] (0)</option>
                                     <!-- Listas personalizadas inyectadas dinámicamente -->
                                 </select>
-                                <button type="button" class="btn-pl-action primary" id="btn-play-playlist" title="Reproducir toda la playlist en la cola">
-                                    <span class="pixel-icon-mask magenta" style="-webkit-mask-image: url('/img/icons/play.svg'); mask-image: url('/img/icons/play.svg'); width: 13px; height: 13px;"></span>
-                                    <span>PLAY</span>
+                                <button type="button" class="btn-pl-action primary" id="btn-play-playlist" title="Reproducir toda la playlist en la cola" style="padding: 6px 10px;">
+                                    <span class="pixel-icon-mask magenta" style="-webkit-mask-image: url('/img/icons/play.svg'); mask-image: url('/img/icons/play.svg'); width: 14px; height: 14px;"></span>
                                 </button>
                                 <button type="button" class="btn-pl-action" id="btn-queue-playlist" title="Añadir toda la playlist a la cola...">
                                     <span class="pixel-icon-mask" style="-webkit-mask-image: url('/img/icons/plus.svg'); mask-image: url('/img/icons/plus.svg'); width: 13px; height: 13px;"></span>
@@ -324,42 +332,99 @@
     <!-- Modales Retro de Gestión -->
     <!-- 1. Modal para Crear / Importar Lista de Reproducción -->
     <div class="retro-modal-backdrop" id="modal-new-playlist" style="display: none;">
-        <div class="retro-modal-box">
+        <div class="retro-modal-box" style="max-width: 580px;">
             <div class="modal-header">
                 <span>[+] NUEVA LISTA DE REPRODUCCIÓN</span>
                 <button type="button" class="modal-close-btn" id="btn-close-modal-pl">&times;</button>
             </div>
             <div class="modal-body">
-                <div style="display: flex; flex-direction: column; gap: 6px; width: 100%; box-sizing: border-box;">
-                    <label for="input-playlist-name" class="modal-label">NOMBRE DE LA PLAYLIST (OPCIONAL):</label>
-                    <input type="text" id="input-playlist-name" class="modal-input" placeholder="Ej: Synthwave 80s, Favoritas..." maxlength="40">
+                <!-- Barra de Pestañas (Oculta por defecto) -->
+                <div style="display: none; gap: 8px; margin-bottom: 12px; border-bottom: 1px dashed rgba(0, 255, 65, 0.3); padding-bottom: 8px;">
+                    <button type="button" class="btn-modal active" id="tab-btn-pl-url" style="flex: 1; padding: 6px; font-size: 0.85rem;">[1. ENLACE / MANUAL]</button>
+                    <button type="button" class="btn-modal" id="tab-btn-pl-spotify" style="flex: 1; padding: 6px; font-size: 0.85rem; border-color: var(--magenta-neon); color: var(--magenta-neon);">[2. MIS PLAYLISTS SPOTIFY]</button>
                 </div>
 
-                <div style="border-top: 1px dashed rgba(0, 255, 65, 0.3); margin: 8px 0 4px 0; padding-top: 10px; width: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 6px;">
-                    <label for="input-playlist-import-url" class="modal-label" style="color: var(--magenta-neon);">IMPORTAR DESDE SPOTIFY / YOUTUBE / WEB:</label>
-                    <input type="text" id="input-playlist-import-url" class="modal-input" style="padding: 12px 14px; font-size: 1.25rem; border-color: rgba(255, 0, 127, 0.6);" placeholder="https://open.spotify.com/playlist/... o YouTube playlist...">
-                    <div style="font-size: 0.95rem; color: rgba(0, 255, 65, 0.75); line-height: 1.35; margin-top: 2px;">
-                        Pega una URL de playlist o álbum de Spotify, o lista de YouTube para extraer e integrar todas las pistas automáticamente. Si dejas el nombre en blanco, se usará el título oficial de la lista.
+                <!-- Panel 1: Importar por URL o Crear Vacía -->
+                <div id="panel-new-pl-url">
+                    <div style="display: flex; flex-direction: column; gap: 6px; width: 100%; box-sizing: border-box;">
+                        <label for="input-playlist-name" class="modal-label">NOMBRE DE LA PLAYLIST (OPCIONAL):</label>
+                        <input type="text" id="input-playlist-name" class="modal-input" placeholder="Ej: Synthwave 80s, Favoritas..." maxlength="40">
+                    </div>
+
+                    <div style="border-top: 1px dashed rgba(0, 255, 65, 0.3); margin: 8px 0 4px 0; padding-top: 10px; width: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 6px;">
+                        <label for="input-playlist-import-url" class="modal-label" style="color: var(--magenta-neon);">IMPORTAR DESDE SPOTIFY / YOUTUBE / WEB:</label>
+                        <input type="text" id="input-playlist-import-url" class="modal-input" style="padding: 12px 14px; font-size: 1.25rem; border-color: rgba(255, 0, 127, 0.6);" placeholder="https://open.spotify.com/playlist/... o YouTube playlist...">
+                        <div style="font-size: 0.95rem; color: rgba(0, 255, 65, 0.75); line-height: 1.35; margin-top: 2px;">
+                            Pega una URL de playlist o álbum de Spotify o lista de YouTube para extraer e integrar todas las pistas automáticamente.
+                        </div>
+                    </div>
+
+                    <div id="new-pl-import-status" style="display: none; padding: 8px; text-align: center; font-size: 0.95rem; border: 1px solid var(--magenta-neon); background: rgba(255, 0, 127, 0.1); color: #fff; margin-top: 8px;">
+                        PROCESANDO ENLACE CON YT-DLP...
+                    </div>
+
+                    <div class="modal-actions" style="margin-top: 14px;">
+                        <button type="button" class="btn-modal cancel" id="btn-cancel-modal-pl">CANCELAR</button>
+                        <button type="button" class="btn-modal confirm" id="btn-confirm-modal-pl">CREAR / IMPORTAR</button>
                     </div>
                 </div>
 
-                <div id="new-pl-import-status" style="display: none; padding: 8px; text-align: center; font-size: 0.95rem; border: 1px solid var(--magenta-neon); background: rgba(255, 0, 127, 0.1); color: #fff;">
-                    PROCESANDO ENLACE CON YT-DLP...
-                </div>
+                <!-- Panel 2: Explorador de Playlists del Usuario de Spotify -->
+                <div id="panel-new-pl-spotify" style="display: none;">
+                    <div id="spotify-my-playlists-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 6px 8px; background: rgba(0,255,65,0.05); border: 1px dashed rgba(0,255,65,0.3);">
+                        <span id="spotify-my-playlists-user-badge" style="font-size: 0.9rem; color: var(--green);">[ESTADO: CONSULTANDO...]</span>
+                        <div style="display: flex; gap: 6px;">
+                            <button type="button" id="btn-refresh-spotify-pl" class="btn-modal" style="font-size: 0.75rem; padding: 2px 6px;">[ACTUALIZAR]</button>
+                            <button type="button" id="btn-unlink-spotify-tab" class="btn-modal" style="font-size: 0.75rem; padding: 2px 6px; border-color: var(--red-alert); color: var(--red-alert); display: none;">[DESCONECTAR]</button>
+                        </div>
+                    </div>
 
-                <div class="modal-actions">
-                    <button type="button" class="btn-modal cancel" id="btn-cancel-modal-pl">CANCELAR</button>
-                    <button type="button" class="btn-modal confirm" id="btn-confirm-modal-pl">CREAR / IMPORTAR</button>
+                    <div id="spotify-my-playlists-list" style="max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px;">
+                        <!-- Rellenado dinámicamente -->
+                    </div>
+
+                    <div class="modal-actions" style="margin-top: 14px;">
+                        <button type="button" class="btn-modal cancel" id="btn-cancel-modal-pl-spotify">CERRAR</button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 2. Modal para Editar Metadatos de Canción -->
+    <!-- Modal: Gestión de Cuenta Spotify OAuth -->
+    <div class="retro-modal-backdrop" id="modal-spotify-account" style="display: none;">
+        <div class="retro-modal-box" style="max-width: 480px;">
+            <div class="modal-header">
+                <span>[SPOTIFY] GESTIÓN DE CUENTA VINCULADA</span>
+                <button type="button" class="modal-close-btn" id="btn-close-modal-spotify">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="spotify-account-card" style="border: 1px dashed rgba(0, 255, 65, 0.4); padding: 14px; background: rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 10px;">
+                    <div id="spotify-account-status-text" style="font-size: 1rem; color: var(--green);">
+                        CONSULTANDO ESTADO DE SPOTIFY...
+                    </div>
+                    <div id="spotify-account-details" style="display: none; font-size: 0.95rem; line-height: 1.4; color: #fff;">
+                        <!-- Rellenado dinámicamente -->
+                    </div>
+                </div>
+
+                <div style="font-size: 0.85rem; color: rgba(0, 255, 65, 0.7); line-height: 1.35; margin-top: 8px;">
+                    Al vincular tu cuenta de Spotify mediante el inicio de sesión oficial, TokiTube obtiene acceso para importar todas tus playlists personales y públicas completas sin límite de canciones.
+                </div>
+
+                <div class="modal-actions" style="margin-top: 14px;">
+                    <button type="button" class="btn-modal cancel" id="btn-cancel-modal-spotify">CERRAR</button>
+                    <button type="button" class="btn-modal confirm" id="btn-action-spotify-auth" style="border-color: var(--magenta-neon); color: var(--magenta-neon);">INICIAR SESIÓN CON SPOTIFY</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Modal para Editar Metadatos y Enlace de Canción -->
     <div class="retro-modal-backdrop" id="modal-edit-track" style="display: none;">
         <div class="retro-modal-box">
             <div class="modal-header">
-                <span>[EDIT] EDITAR ETIQUETAS DE PISTA</span>
+                <span>[EDIT] EDITAR ETIQUETAS Y ENLACE DE PISTA</span>
                 <button type="button" class="modal-close-btn" id="btn-close-modal-edit">&times;</button>
             </div>
             <div class="modal-body">
@@ -371,9 +436,12 @@
                 <label for="edit-track-album" class="modal-label">ÁLBUM:</label>
                 <input type="text" id="edit-track-album" class="modal-input" placeholder="Álbum">
                 
-                <div style="margin-top: 10px; border-top: 1px dashed rgba(0, 255, 65, 0.2); padding-top: 10px;">
+                <label for="edit-track-url" class="modal-label" style="color: var(--magenta-neon); margin-top: 6px;">ENLACE WEB ASOCIADO (YOUTUBE / WEB / TOKIDRIVE):</label>
+                <input type="text" id="edit-track-url" class="modal-input" placeholder="https://www.youtube.com/watch?v=... o ytsearch1:..." style="border-color: rgba(255, 0, 127, 0.5);">
+                
+                <div style="margin-top: 10px; border-top: 1px dashed rgba(0, 255, 65, 0.2); padding-top: 8px;">
                     <button type="button" class="btn-modal" id="btn-edit-track-relink" style="width: 100%; border-color: var(--yellow-warn); color: var(--yellow-warn); background: rgba(255, 204, 0, 0.08); font-size: 0.95rem; padding: 6px;">
-                        [🔗] CAMBIAR O REPARAR ENLACE WEB (YOUTUBE)
+                        [ENLACE] ASISTENTE DE BÚSQUEDA / REPARAR ENLACE EN LA RED
                     </button>
                 </div>
 

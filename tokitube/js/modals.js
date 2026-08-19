@@ -8,7 +8,7 @@ import {
     appendLog
 } from './state.js';
 import { apiFetch, getBackendUrl } from './api.js';
-import { saveTrackToIDB, saveQueueToIDB, getCurrentUser, getAuthToken } from './storage.js';
+import { saveTrackToIDB, saveTracksBatchToIDB, saveQueueToIDB, getCurrentUser, getAuthToken } from './storage.js';
 import { showLoader, hideLoader } from './utils.js';
 
 let activeEditTrackHash = null;
@@ -22,6 +22,7 @@ export function getActiveEditTrack() {
 // =============================================================================
 export function openNewPlaylistModal() {
     if (!dom.modalNewPlaylist) return;
+    switchPlaylistTab('url');
     if (dom.inputNewPlaylistName) {
         dom.inputNewPlaylistName.value = '';
     }
@@ -90,16 +91,18 @@ export async function handleConfirmNewPlaylist(onCreated) {
             hideLoader();
 
             if (data.success && data.playlist) {
-                // Guardar las pistas importadas en memoria y en IndexedDB
+                // Guardar las pistas importadas en memoria y en IndexedDB en lote atómico
                 if (Array.isArray(data.tracks)) {
-                    for (const trk of data.tracks) {
-                        allTracksMap.set(trk.trackHash, trk);
-                        await saveTrackToIDB(trk);
-                    }
+                    data.tracks.forEach(trk => allTracksMap.set(trk.trackHash, trk));
+                    await saveTracksBatchToIDB(data.tracks);
                 }
 
                 setUserPlaylists([...userPlaylists, data.playlist]);
                 appendLog(`PLAYLIST IMPORTADA DE ${platformName}: "${data.playlist.name.toUpperCase()}" (${data.importedCount || 0} pistas)`);
+
+                if (isSpotify && data.importedCount >= 100) {
+                    appendLog(`[AVISO SPOTIFY] Se extrajeron las primeras 100 canciones (límite máximo de Spotify Web). Si tu lista tiene más pistas, impórtala desde YouTube para obtener el 100%.`, true);
+                }
 
                 closeNewPlaylistModal();
                 document.dispatchEvent(new CustomEvent('dorocoro:playlist-changed', { detail: { playlistId: data.playlist.id } }));
@@ -164,7 +167,7 @@ export async function handleConfirmNewPlaylist(onCreated) {
 }
 
 // =============================================================================
-// MODAL: EDITAR METADATOS DE PISTA
+// MODAL: EDITAR METADATOS Y ENLACE DE PISTA
 // =============================================================================
 export function openEditTrackModal(track, onSaved) {
     if (!dom.modalEditTrack || !track) return;
@@ -173,6 +176,7 @@ export function openEditTrackModal(track, onSaved) {
     if (dom.editTrackTitle) dom.editTrackTitle.value = track.title || '';
     if (dom.editTrackArtist) dom.editTrackArtist.value = track.artist || '';
     if (dom.editTrackAlbum) dom.editTrackAlbum.value = track.album || '';
+    if (dom.editTrackUrl) dom.editTrackUrl.value = track.webUrl || '';
 
     dom.modalEditTrack.style.display = 'flex';
     if (dom.editTrackTitle) dom.editTrackTitle.focus();
@@ -191,6 +195,7 @@ export async function handleConfirmEditTrack(onSaved) {
     const newTitle = dom.editTrackTitle ? dom.editTrackTitle.value.trim() : '';
     const newArtist = dom.editTrackArtist ? dom.editTrackArtist.value.trim() : '';
     const newAlbum = dom.editTrackAlbum ? dom.editTrackAlbum.value.trim() : '';
+    const newUrl = dom.editTrackUrl ? dom.editTrackUrl.value.trim() : '';
 
     if (!newTitle) {
         appendLog('ERROR: El título no puede estar vacío.', true);
@@ -201,21 +206,60 @@ export async function handleConfirmEditTrack(onSaved) {
     track.artist = newArtist || 'Desconocido';
     track.album = newAlbum || 'Álbum';
 
+    // Actualizar enlace y fuente si cambió
+    if (newUrl !== (track.webUrl || '')) {
+        track.webUrl = newUrl;
+        if (newUrl) {
+            const isDrive = (newUrl.startsWith('/drive/') || newUrl.includes('/drive-stream/'));
+            track.sourceType = isDrive ? 'drive' : 'web';
+            track.src = isDrive
+                ? `${getBackendUrl()}${newUrl}`
+                : `${getBackendUrl()}/api/tokitube/stream/${track.trackHash}?url=${encodeURIComponent(newUrl)}`;
+        } else if (track.file) {
+            track.sourceType = 'local';
+            track.src = URL.createObjectURL(track.file);
+        } else {
+            track.sourceType = 'local';
+            track.src = '';
+        }
+    }
+
     allTracksMap.set(activeEditTrackHash, track);
     await saveTrackToIDB(track);
 
-    if (track.sourceType === 'drive' || track.sourceType === 'web' || Boolean(track.webUrl)) {
-        apiFetch(`/tracks/${activeEditTrackHash}`, {
-            method: 'PUT',
-            body: JSON.stringify({
-                title: track.title,
-                artist: track.artist,
-                album: track.album
-            })
-        }).catch(() => {});
+    // Actualizar instancias activas en la cola de reproducción
+    currentQueue.forEach(item => {
+        if (item.trackHash === track.trackHash) {
+            item.title = track.title;
+            item.artist = track.artist;
+            item.album = track.album;
+            item.webUrl = track.webUrl;
+            item.sourceType = track.sourceType;
+            if (track.src) item.src = track.src;
+        }
+    });
+    saveQueueToIDB(currentQueue, currentIndex);
+
+    // Si el track editado está sonando actualmente, actualizar LCD del Deck
+    if (currentQueue[currentIndex]?.trackHash === track.trackHash) {
+        if (dom.trackTitle) dom.trackTitle.textContent = track.title;
+        if (dom.trackArtist) dom.trackArtist.textContent = track.artist;
     }
 
-    appendLog(`METADATOS ACTUALIZADOS: "${track.artist} - ${track.title}"`);
+    // Sincronizar con el backend SQLite
+    apiFetch(`/tracks/${activeEditTrackHash}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+            title: track.title,
+            artist: track.artist,
+            album: track.album,
+            webUrl: track.webUrl || null,
+            sourceType: track.sourceType || 'web'
+        })
+    }).catch(() => {});
+
+    appendLog(`METADATOS Y ENLACE ACTUALIZADOS: "${track.artist} - ${track.title}" ${track.webUrl ? `[${track.webUrl.slice(0, 40)}...]` : ''}`);
+    document.dispatchEvent(new CustomEvent('dorocoro:track-relinked', { detail: { track } }));
     closeEditTrackModal();
     if (onSaved) onSaved(track);
 }
@@ -629,7 +673,7 @@ export function openRelinkTrackModal(track, isErrorMode = false, onRelinked = nu
     if (dom.relinkTrackName) {
         dom.relinkTrackName.innerHTML = `
             <div style="font-size: 1.15rem; color: var(--green); font-weight: bold;">[${track.artist}] - ${track.title}</div>
-            ${isErrorMode ? `<div style="color: var(--red-alert); font-size: 0.95rem; margin-top: 6px; line-height: 1.3;">⚠️ El video o enlace de audio anterior no está disponible en YouTube (video eliminado, privado o no disponible). Elige o busca una alternativa abajo:</div>` : ''}
+            ${isErrorMode ? `<div style="color: var(--red-alert); font-size: 0.95rem; margin-top: 6px; line-height: 1.3;">[AVISO] El video o enlace de audio anterior no está disponible en YouTube (video eliminado, privado o no disponible). Elige o busca una alternativa abajo:</div>` : ''}
         `;
     }
 
@@ -663,4 +707,371 @@ export function closeRelinkTrackModal() {
     if (dom.modalRelinkTrack) {
         dom.modalRelinkTrack.style.display = 'none';
     }
+}
+
+// =============================================================================
+// GESTIÓN DE CUENTA SPOTIFY (OAUTH 2.0)
+// =============================================================================
+export let spotifyAccountState = {
+    connected: false,
+    displayName: '',
+    userId: '',
+    avatar: null
+};
+
+/**
+ * Consulta el estado de vinculación de Spotify con el backend
+ */
+export async function checkSpotifyStatus() {
+    try {
+        const data = await apiFetch('/spotify/status');
+        if (data && data.success && data.connected) {
+            spotifyAccountState = {
+                connected: true,
+                displayName: data.spotifyDisplayName || 'Usuario Spotify',
+                userId: data.spotifyUserId || '',
+                avatar: data.spotifyAvatar || null
+            };
+            if (dom.btnWinSpotify) {
+                dom.btnWinSpotify.textContent = `[SPOTIFY: ${spotifyAccountState.displayName.toUpperCase()}]`;
+                dom.btnWinSpotify.style.display = 'none';
+            }
+            if (dom.spotifyMyPlaylistsUserBadge) {
+                dom.spotifyMyPlaylistsUserBadge.textContent = `[CONECTADO: ${spotifyAccountState.displayName.toUpperCase()}]`;
+            }
+            if (dom.btnUnlinkSpotifyTab) {
+                dom.btnUnlinkSpotifyTab.style.display = 'inline-block';
+            }
+        } else {
+            spotifyAccountState = {
+                connected: false,
+                displayName: '',
+                userId: '',
+                avatar: null
+            };
+            if (dom.btnWinSpotify) {
+                dom.btnWinSpotify.textContent = '[SPOTIFY]';
+                dom.btnWinSpotify.style.display = 'none';
+            }
+            if (dom.spotifyMyPlaylistsUserBadge) {
+                dom.spotifyMyPlaylistsUserBadge.textContent = '[ESTADO: NO VINCULADO]';
+            }
+            if (dom.btnUnlinkSpotifyTab) {
+                dom.btnUnlinkSpotifyTab.style.display = 'none';
+            }
+        }
+        document.dispatchEvent(new CustomEvent('dorocoro:spotify-status-changed', { detail: spotifyAccountState }));
+        return spotifyAccountState;
+    } catch (err) {
+        console.warn('[SPOTIFY STATUS CHECK ERROR]', err);
+        return spotifyAccountState;
+    }
+}
+
+/**
+ * Abre la ventana emergente centrada para el inicio de sesión OAuth de Spotify
+ */
+export function openSpotifyLoginPopup() {
+    const width = 520;
+    const height = 720;
+    const left = Math.max(0, (window.screen.width - width) / 2);
+    const top = Math.max(0, (window.screen.height - height) / 2);
+    const user = (getCurrentUser() || 'admin').toLowerCase();
+    const token = getAuthToken() || '';
+    const query = new URLSearchParams({ user, token }).toString();
+    const url = `${getBackendUrl()}/api/tokitube/spotify/login?${query}`;
+
+    appendLog(`[SPOTIFY] Abriendo ventana de inicio de sesión oficial para usuario "${user}"...`);
+    window.open(url, 'tokitube_spotify_auth', `width=${width},height=${height},top=${top},left=${left},status=no,toolbar=no,menubar=no,location=no`);
+}
+
+/**
+ * Abre el modal de configuración de cuenta de Spotify
+ */
+export async function openSpotifyAccountModal() {
+    if (!dom.modalSpotifyAccount) return;
+    await checkSpotifyStatus();
+
+    if (dom.spotifyAccountStatusText) {
+        dom.spotifyAccountStatusText.textContent = spotifyAccountState.connected
+            ? `[CUENTA VINCULADA: ${spotifyAccountState.displayName.toUpperCase()}]`
+            : '[CUENTA DE SPOTIFY NO VINCULADA]';
+        dom.spotifyAccountStatusText.style.color = spotifyAccountState.connected ? 'var(--green)' : 'var(--magenta-neon)';
+    }
+
+    if (dom.spotifyAccountDetails) {
+        if (spotifyAccountState.connected) {
+            dom.spotifyAccountDetails.style.display = 'block';
+            dom.spotifyAccountDetails.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 12px; margin-top: 6px;">
+                    ${spotifyAccountState.avatar ? `<img src="${spotifyAccountState.avatar}" style="width: 44px; height: 44px; border: 1px solid var(--green); border-radius: 4px;">` : `<div style="width: 44px; height: 44px; background: rgba(0,255,65,0.1); border: 1px solid var(--green); display: flex; align-items: center; justify-content: center; font-size: 0.75rem;">USER</div>`}
+                    <div>
+                        <div style="font-weight: bold; color: var(--green); font-size: 1.05rem;">${spotifyAccountState.displayName}</div>
+                        <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6);">ID Spotify: ${spotifyAccountState.userId || 'N/A'}</div>
+                    </div>
+                </div>
+            `;
+        } else {
+            dom.spotifyAccountDetails.style.display = 'block';
+            dom.spotifyAccountDetails.innerHTML = `
+                <div style="color: rgba(255,255,255,0.85); font-size: 0.9rem; margin-top: 4px;">
+                    Inicia sesión con tu cuenta de Spotify para habilitar la extracción de playlists completas sin límite de 100 canciones y explorar tus listas personales.
+                </div>
+            `;
+        }
+    }
+
+    if (dom.btnActionSpotifyAuth) {
+        if (spotifyAccountState.connected) {
+            dom.btnActionSpotifyAuth.textContent = 'DESVINCULAR CUENTA';
+            dom.btnActionSpotifyAuth.style.borderColor = 'var(--red-alert)';
+            dom.btnActionSpotifyAuth.style.color = 'var(--red-alert)';
+        } else {
+            dom.btnActionSpotifyAuth.textContent = 'INICIAR SESIÓN CON SPOTIFY';
+            dom.btnActionSpotifyAuth.style.borderColor = 'var(--magenta-neon)';
+            dom.btnActionSpotifyAuth.style.color = 'var(--magenta-neon)';
+        }
+    }
+
+    dom.modalSpotifyAccount.style.display = 'flex';
+}
+
+export function closeSpotifyAccountModal() {
+    if (dom.modalSpotifyAccount) dom.modalSpotifyAccount.style.display = 'none';
+}
+
+/**
+ * Maneja el botón de acción del modal de cuenta (Login o Desvincular)
+ */
+export async function handleSpotifyAuthAction() {
+    if (spotifyAccountState.connected) {
+        if (!confirm('¿Deseas desvincular tu cuenta de Spotify de TokiTube?')) return;
+        try {
+            showLoader('DESVINCULANDO CUENTA...', 'Eliminando tokens de Spotify...');
+            await apiFetch('/spotify/unlink', { method: 'POST' });
+            hideLoader();
+            appendLog('[SPOTIFY] Cuenta de Spotify desvinculada exitosamente.');
+            await checkSpotifyStatus();
+            closeSpotifyAccountModal();
+            if (dom.panelNewPlSpotify && dom.panelNewPlSpotify.style.display !== 'none') {
+                loadUserSpotifyPlaylists();
+            }
+        } catch (err) {
+            hideLoader();
+            appendLog(`[ERROR SPOTIFY] No se pudo desvincular: ${err.message}`, true);
+        }
+    } else {
+        openSpotifyLoginPopup();
+    }
+}
+
+/**
+ * Cambia entre la pestaña de URL manual y Mis Playlists en el modal de nueva lista
+ */
+export function switchPlaylistTab(tab) {
+    if (tab === 'url') {
+        if (dom.tabBtnPlUrl) dom.tabBtnPlUrl.classList.add('active');
+        if (dom.tabBtnPlSpotify) dom.tabBtnPlSpotify.classList.remove('active');
+        if (dom.panelNewPlUrl) dom.panelNewPlUrl.style.display = 'block';
+        if (dom.panelNewPlSpotify) dom.panelNewPlSpotify.style.display = 'none';
+    } else if (tab === 'spotify') {
+        if (dom.tabBtnPlSpotify) dom.tabBtnPlSpotify.classList.add('active');
+        if (dom.tabBtnPlUrl) dom.tabBtnPlUrl.classList.remove('active');
+        if (dom.panelNewPlUrl) dom.panelNewPlUrl.style.display = 'none';
+        if (dom.panelNewPlSpotify) dom.panelNewPlSpotify.style.display = 'block';
+        loadUserSpotifyPlaylists();
+    }
+}
+
+/**
+ * Carga y renderiza la lista de playlists del usuario desde Spotify
+ */
+export async function loadUserSpotifyPlaylists() {
+    if (!dom.spotifyMyPlaylistsList) return;
+    await checkSpotifyStatus();
+
+    if (!spotifyAccountState.connected) {
+        dom.spotifyMyPlaylistsList.innerHTML = `
+            <div style="text-align: center; padding: 24px 10px; border: 1px dashed rgba(255, 0, 127, 0.4); background: rgba(0,0,0,0.4);">
+                <div style="font-size: 1rem; color: var(--magenta-neon); font-weight: bold; margin-bottom: 8px;">[CUENTA NO VINCULADA]</div>
+                <div style="font-size: 0.9rem; color: rgba(255,255,255,0.8); margin-bottom: 14px;">Inicia sesión con Spotify para cargar tus listas de reproducción personales.</div>
+                <button type="button" id="btn-login-from-tab" class="btn-modal confirm" style="border-color: var(--magenta-neon); color: var(--magenta-neon);">INICIAR SESIÓN CON SPOTIFY</button>
+            </div>
+        `;
+        const btnLoginTab = document.getElementById('btn-login-from-tab');
+        if (btnLoginTab) {
+            btnLoginTab.addEventListener('click', openSpotifyLoginPopup);
+        }
+        return;
+    }
+
+    dom.spotifyMyPlaylistsList.innerHTML = `
+        <div style="text-align: center; padding: 20px; font-size: 0.95rem; color: var(--green);">
+            [CONSULTANDO PLAYLISTS EN TU CUENTA DE SPOTIFY...]
+        </div>
+    `;
+
+    try {
+        const data = await apiFetch('/spotify/my-playlists');
+        if (data.success && Array.isArray(data.playlists)) {
+            if (data.playlists.length === 0) {
+                dom.spotifyMyPlaylistsList.innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: rgba(255,255,255,0.7); font-size: 0.95rem;">
+                        No se encontraron listas de reproducción en tu biblioteca de Spotify.
+                    </div>
+                `;
+                return;
+            }
+
+            dom.spotifyMyPlaylistsList.innerHTML = '';
+            data.playlists.forEach(p => {
+                const item = document.createElement('div');
+                item.className = 'spotify-pl-item';
+                item.style.cssText = 'display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px dashed rgba(0, 255, 65, 0.25); background: rgba(0,0,0,0.4);';
+
+                item.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1;">
+                        ${p.coverUrl ? `<img src="${p.coverUrl}" style="width: 40px; height: 40px; object-fit: cover; border: 1px solid var(--green); flex-shrink: 0;">` : `<div style="width: 40px; height: 40px; background: rgba(0,255,65,0.1); border: 1px solid var(--green); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; flex-shrink: 0;">LISTA</div>`}
+                        <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">
+                            <div style="font-size: 0.95rem; font-weight: bold; color: #fff; overflow: hidden; text-overflow: ellipsis;">${p.name}</div>
+                            <div style="font-size: 0.8rem; color: rgba(0, 255, 65, 0.7);">${p.tracksCount} canciones | por ${p.owner}</div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-modal confirm btn-import-sp-pl" style="padding: 5px 10px; font-size: 0.8rem; flex-shrink: 0;">[IMPORTAR]</button>
+                `;
+
+                const btnImport = item.querySelector('.btn-import-sp-pl');
+                if (btnImport) {
+                    btnImport.addEventListener('click', () => importUserSpotifyPlaylistDirect(p, btnImport));
+                }
+
+                dom.spotifyMyPlaylistsList.appendChild(item);
+            });
+        } else {
+            dom.spotifyMyPlaylistsList.innerHTML = `
+                <div style="text-align: center; padding: 16px; color: var(--red-alert); font-size: 0.95rem;">
+                    Error al obtener playlists: ${data.error || 'Error desconocido'}
+                </div>
+            `;
+        }
+    } catch (err) {
+        dom.spotifyMyPlaylistsList.innerHTML = `
+            <div style="text-align: center; padding: 16px; color: var(--red-alert); font-size: 0.95rem;">
+                Error de conexión: ${err.message}
+            </div>
+        `;
+    }
+}
+
+/**
+ * Importa directamente una playlist seleccionada del usuario de Spotify
+ */
+async function importUserSpotifyPlaylistDirect(playlist, buttonElement) {
+    if (!playlist || !playlist.spotifyUrl) return;
+
+    if (buttonElement) {
+        buttonElement.disabled = true;
+        buttonElement.textContent = '[IMPORTANDO...]';
+    }
+
+    showLoader(`IMPORTANDO "${playlist.name.toUpperCase()}"...`, `Extrayendo ${playlist.tracksCount || ''} canciones con tu cuenta de Spotify...`);
+    appendLog(`[SPOTIFY] Iniciando importación completa de tu playlist: "${playlist.name}" (${playlist.spotifyUrl})`);
+
+    try {
+        const data = await apiFetch('/playlists/import-web', {
+            method: 'POST',
+            body: JSON.stringify({
+                url: playlist.spotifyUrl,
+                name: playlist.name
+            })
+        });
+
+        hideLoader();
+
+        if (data.success && data.playlist) {
+            if (Array.isArray(data.tracks)) {
+                data.tracks.forEach(trk => allTracksMap.set(trk.trackHash, trk));
+                await saveTracksBatchToIDB(data.tracks);
+            }
+
+            setUserPlaylists([...userPlaylists, data.playlist]);
+            appendLog(`PLAYLIST IMPORTADA DE SPOTIFY: "${data.playlist.name.toUpperCase()}" (${data.importedCount || 0} pistas)`);
+
+            closeNewPlaylistModal();
+            document.dispatchEvent(new CustomEvent('dorocoro:playlist-changed', { detail: { playlistId: data.playlist.id } }));
+        } else {
+            const errMsg = data.error || 'No se pudieron extraer canciones de la playlist.';
+            appendLog(`ERROR AL IMPORTAR LISTA DE SPOTIFY: ${errMsg}`, true);
+            alert(`Error: ${errMsg}`);
+            if (buttonElement) {
+                buttonElement.disabled = false;
+                buttonElement.textContent = '[IMPORTAR]';
+            }
+        }
+    } catch (err) {
+        hideLoader();
+        appendLog(`ERROR AL IMPORTAR: ${err.message}`, true);
+        alert(`Error al importar: ${err.message}`);
+        if (buttonElement) {
+            buttonElement.disabled = false;
+            buttonElement.textContent = '[IMPORTAR]';
+        }
+    }
+}
+
+/**
+ * Inicializa todos los eventos y listeners para la autenticación de Spotify
+ */
+export function initSpotifyAuthModal() {
+    // Botón de Spotify en la barra de ventana
+    if (dom.btnWinSpotify) {
+        dom.btnWinSpotify.addEventListener('click', openSpotifyAccountModal);
+    }
+
+    // Modal de cuenta Spotify
+    if (dom.btnCloseModalSpotify) {
+        dom.btnCloseModalSpotify.addEventListener('click', closeSpotifyAccountModal);
+    }
+    if (dom.btnCancelModalSpotify) {
+        dom.btnCancelModalSpotify.addEventListener('click', closeSpotifyAccountModal);
+    }
+    if (dom.btnActionSpotifyAuth) {
+        dom.btnActionSpotifyAuth.addEventListener('click', handleSpotifyAuthAction);
+    }
+
+    // Pestañas de Nueva Playlist
+    if (dom.tabBtnPlUrl) {
+        dom.tabBtnPlUrl.addEventListener('click', () => switchPlaylistTab('url'));
+    }
+    if (dom.tabBtnPlSpotify) {
+        dom.tabBtnPlSpotify.addEventListener('click', () => switchPlaylistTab('spotify'));
+    }
+    if (dom.btnCancelModalPlSpotify) {
+        dom.btnCancelModalPlSpotify.addEventListener('click', closeNewPlaylistModal);
+    }
+    if (dom.btnRefreshSpotifyPl) {
+        dom.btnRefreshSpotifyPl.addEventListener('click', loadUserSpotifyPlaylists);
+    }
+    if (dom.btnUnlinkSpotifyTab) {
+        dom.btnUnlinkSpotifyTab.addEventListener('click', handleSpotifyAuthAction);
+    }
+
+    // Escuchador de mensaje desde la ventana emergente de autenticación
+    window.addEventListener('message', async (event) => {
+        if (event.data && event.data.type === 'SPOTIFY_AUTH_RESULT') {
+            if (event.data.success) {
+                appendLog(`[SPOTIFY] Autenticación exitosa: ${event.data.message}`);
+                await checkSpotifyStatus();
+                closeSpotifyAccountModal();
+                if (dom.panelNewPlSpotify && dom.panelNewPlSpotify.style.display !== 'none') {
+                    loadUserSpotifyPlaylists();
+                }
+            } else {
+                appendLog(`[ERROR SPOTIFY] ${event.data.message || 'Fallo en la autenticación.'}`, true);
+            }
+        }
+    });
+
+    // Comprobar estado inicial silenciosamente
+    checkSpotifyStatus().catch(() => {});
 }

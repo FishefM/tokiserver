@@ -312,10 +312,262 @@ export function downloadAudioTrack(trackHash, webUrl) {
   return promise;
 }
 
+// Cache en memoria para token de acceso de Spotify API
+let cachedSpotifyToken = null;
+let spotifyTokenExpiresAt = 0;
+
+/**
+ * Obtiene un token de acceso OAuth2 Client Credentials de Spotify si existen credenciales en .env
+ */
+async function getSpotifyAccessToken() {
+  const clientId = (process.env.SPOTIFY_CLIENT_ID || '').trim();
+  const clientSecret = (process.env.SPOTIFY_CLIENT_SECRET || '').trim();
+
+  if (!clientId || !clientSecret) {
+    return null;
+  }
+
+  if (cachedSpotifyToken && Date.now() < spotifyTokenExpiresAt) {
+    return cachedSpotifyToken;
+  }
+
+  try {
+    const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+    const res = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${authHeader}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: 'grant_type=client_credentials'
+    });
+
+    if (!res.ok) {
+      console.warn(`[SPOTIFY API AUTH] Error ${res.status} al solicitar token.`);
+      return null;
+    }
+
+    const data = await res.json();
+    if (data.access_token) {
+      cachedSpotifyToken = data.access_token;
+      const expiresIn = data.expires_in || 3600;
+      spotifyTokenExpiresAt = Date.now() + (expiresIn - 60) * 1000;
+      return cachedSpotifyToken;
+    }
+  } catch (err) {
+    console.error('[SPOTIFY API AUTH ERROR]', err);
+  }
+
+  return null;
+}
+
+/**
+ * Extrae todas las pistas de Spotify usando la API oficial con paginación ilimitada (superando el límite de 100)
+ */
+async function extractSpotifyViaApi(type, id, token) {
+  const headers = {
+    'Authorization': `Bearer ${token}`,
+    'Accept': 'application/json'
+  };
+
+  if (type === 'track') {
+    const res = await fetch(`https://api.spotify.com/v1/tracks/${id}`, { headers });
+    if (!res.ok) return null;
+    const t = await res.json();
+    const title = t.name || 'Pista de Spotify';
+    const artist = Array.isArray(t.artists) ? t.artists.map(a => a.name).join(', ') : 'Artista Spotify';
+    const durSecs = Math.floor((t.duration_ms || 0) / 1000);
+    const durationStr = formatSeconds(durSecs);
+    const thumb = Array.isArray(t.album?.images) && t.album.images.length > 0
+      ? t.album.images[0].url
+      : '';
+    const cleanSearch = sanitizeSearchQuery(`${artist} ${title}`);
+
+    return {
+      playlistTitle: title,
+      tracks: [{
+        trackHash: `trk_sp_${t.id || id}`,
+        title,
+        artist,
+        album: t.album?.name || 'Sencillo',
+        duration: durationStr !== '--:--' ? durationStr : '03:30',
+        format: 'M4A / SPOTIFY',
+        sourceType: 'web',
+        webUrl: `ytsearch1:${cleanSearch}`,
+        thumbnail: thumb
+      }]
+    };
+  }
+
+  if (type === 'album') {
+    const albumRes = await fetch(`https://api.spotify.com/v1/albums/${id}`, { headers });
+    if (!albumRes.ok) return null;
+    const albumData = await albumRes.json();
+    const playlistTitle = albumData.name || 'Álbum de Spotify';
+    const defaultThumb = Array.isArray(albumData.images) && albumData.images.length > 0
+      ? albumData.images[0].url
+      : '';
+
+    let nextUrl = `https://api.spotify.com/v1/albums/${id}/tracks?limit=50&offset=0`;
+    const tracks = [];
+
+    while (nextUrl) {
+      const pageRes = await fetch(nextUrl, { headers });
+      if (!pageRes.ok) break;
+      const pageData = await pageRes.json();
+      const items = Array.isArray(pageData.items) ? pageData.items : [];
+
+      for (const t of items) {
+        if (!t || !t.id) continue;
+        const title = t.name || 'Pista de Spotify';
+        const artist = Array.isArray(t.artists) ? t.artists.map(a => a.name).join(', ') : 'Artista Spotify';
+        const durSecs = Math.floor((t.duration_ms || 0) / 1000);
+        const durationStr = formatSeconds(durSecs);
+        const cleanSearch = sanitizeSearchQuery(`${artist} ${title}`);
+
+        tracks.push({
+          trackHash: `trk_sp_${t.id}`,
+          title,
+          artist,
+          album: playlistTitle,
+          duration: durationStr !== '--:--' ? durationStr : '03:30',
+          format: 'M4A / SPOTIFY',
+          sourceType: 'web',
+          webUrl: `ytsearch1:${cleanSearch}`,
+          thumbnail: defaultThumb
+        });
+      }
+
+      nextUrl = pageData.next || null;
+    }
+
+    return { playlistTitle, tracks };
+  }
+
+  if (type === 'playlist') {
+    const playlistRes = await fetch(`https://api.spotify.com/v1/playlists/${id}`, { headers });
+    if (!playlistRes.ok) {
+      const errBody = await playlistRes.text();
+      console.warn(`[SPOTIFY API ERROR] Código ${playlistRes.status} al consultar playlist: ${errBody.slice(0, 200)}`);
+      return null;
+    }
+    const playlistData = await playlistRes.json();
+    const playlistTitle = playlistData.name || 'Lista de Spotify';
+    const defaultThumb = Array.isArray(playlistData.images) && playlistData.images.length > 0
+      ? playlistData.images[0].url
+      : '';
+
+    const tracks = [];
+    let nextUrl = `https://api.spotify.com/v1/playlists/${id}/tracks?limit=50&offset=0`;
+
+    while (nextUrl) {
+      const pageRes = await fetch(nextUrl, { headers });
+      if (!pageRes.ok) break;
+      const pageData = await pageRes.json();
+      const items = Array.isArray(pageData.items) ? pageData.items : [];
+
+      for (const item of items) {
+        const t = item?.track;
+        if (!t || !t.id) continue;
+        const title = t.name || 'Pista de Spotify';
+        const artist = Array.isArray(t.artists) ? t.artists.map(a => a.name).join(', ') : 'Artista Spotify';
+        const durSecs = Math.floor((t.duration_ms || 0) / 1000);
+        const durationStr = formatSeconds(durSecs);
+        const thumb = Array.isArray(t.album?.images) && t.album.images.length > 0
+          ? t.album.images[0].url
+          : defaultThumb;
+        const cleanSearch = sanitizeSearchQuery(`${artist} ${title}`);
+
+        tracks.push({
+          trackHash: `trk_sp_${t.id}`,
+          title,
+          artist,
+          album: t.album?.name || playlistTitle,
+          duration: durationStr !== '--:--' ? durationStr : '03:30',
+          format: 'M4A / SPOTIFY',
+          sourceType: 'web',
+          webUrl: `ytsearch1:${cleanSearch}`,
+          thumbnail: thumb
+        });
+      }
+
+      nextUrl = pageData.next || null;
+    }
+
+    return { playlistTitle, tracks };
+  }
+
+  return null;
+}
+
+/**
+ * Extrae pistas vía Spotify Web Embed (fallback que extrae hasta 100 canciones)
+ */
+async function extractSpotifyViaEmbed(type, id) {
+  const embedUrl = `https://open.spotify.com/embed/${type}/${id}`;
+
+  const res = await fetch(embedUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+    }
+  });
+
+  if (!res.ok) {
+    return { playlistTitle: '', tracks: [] };
+  }
+
+  const html = await res.text();
+  const scriptMatch = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/);
+  if (!scriptMatch || !scriptMatch[1]) {
+    return { playlistTitle: '', tracks: [] };
+  }
+
+  const json = JSON.parse(scriptMatch[1]);
+  const entity = json.props?.pageProps?.state?.data?.entity;
+  if (!entity) {
+    return { playlistTitle: '', tracks: [] };
+  }
+
+  const playlistTitle = entity.name || entity.title || `Spotify ${type.toUpperCase()}`;
+  const rawList = Array.isArray(entity.trackList) ? entity.trackList : (entity.type === 'track' ? [entity] : []);
+
+  let defaultThumb = '';
+  if (Array.isArray(entity.visualIdentity?.image) && entity.visualIdentity.image.length > 0) {
+    defaultThumb = entity.visualIdentity.image[entity.visualIdentity.image.length - 1]?.url || '';
+  }
+
+  const tracks = rawList.map((t, idx) => {
+    const spId = (t.uri || t.id || '').replace(/^spotify:track:/, '') || `sp_${Date.now()}_${idx}`;
+    const title = t.title || t.name || 'Pista de Spotify';
+    const artist = t.subtitle || (Array.isArray(t.artists) ? t.artists.map(a => a.name).join(', ') : 'Artista Spotify');
+    const durSecs = Math.floor((t.duration || t.duration_ms || 0) / 1000);
+    const durationStr = formatSeconds(durSecs);
+    const trackHash = `trk_sp_${spId}`;
+    const cleanSearch = sanitizeSearchQuery(`${artist} ${title}`);
+
+    return {
+      trackHash,
+      title,
+      artist,
+      album: playlistTitle,
+      duration: durationStr !== '--:--' ? durationStr : '03:30',
+      format: 'M4A / SPOTIFY',
+      sourceType: 'web',
+      webUrl: `ytsearch1:${cleanSearch}`,
+      thumbnail: defaultThumb
+    };
+  });
+
+  return { playlistTitle, tracks };
+}
+
+import { extractSpotifyWithUserToken } from './spotifyAuthService.js';
+
 /**
  * Extrae pistas de una URL de Spotify (playlist, album, track)
  */
-export async function extractSpotifyFromUrl(spotifyUrl) {
+export async function extractSpotifyFromUrl(spotifyUrl, username = null) {
   try {
     const clean = (spotifyUrl || '').trim();
     const match = clean.match(/\/(playlist|album|track)\/([a-zA-Z0-9]+)/);
@@ -325,62 +577,32 @@ export async function extractSpotifyFromUrl(spotifyUrl) {
 
     const type = match[1];
     const id = match[2];
-    const embedUrl = `https://open.spotify.com/embed/${type}/${id}`;
 
-    const res = await fetch(embedUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+    // 1. Si se provee un usuario, intentar primero con su cuenta de Spotify vinculada (OAuth)
+    if (username) {
+      const userResult = await extractSpotifyWithUserToken(type, id, username);
+      if (userResult && Array.isArray(userResult.tracks) && userResult.tracks.length > 0) {
+        console.log(`[SPOTIFY USER OAUTH] ${userResult.tracks.length} canciones extraídas exitosamente con la cuenta de "${username}"`);
+        return userResult;
       }
-    });
-
-    if (!res.ok) {
-      return { playlistTitle: '', tracks: [] };
     }
 
-    const html = await res.text();
-    const scriptMatch = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/);
-    if (!scriptMatch || !scriptMatch[1]) {
-      return { playlistTitle: '', tracks: [] };
+    // 2. Intentar con la API de Spotify mediante Client Credentials si están disponibles
+    const token = await getSpotifyAccessToken();
+    if (token) {
+      const apiResult = await extractSpotifyViaApi(type, id, token);
+      if (apiResult && Array.isArray(apiResult.tracks) && apiResult.tracks.length > 0) {
+        console.log(`[SPOTIFY API] ${apiResult.tracks.length} canciones extraídas exitosamente de "${apiResult.playlistTitle}"`);
+        return apiResult;
+      }
     }
 
-    const json = JSON.parse(scriptMatch[1]);
-    const entity = json.props?.pageProps?.state?.data?.entity;
-    if (!entity) {
-      return { playlistTitle: '', tracks: [] };
+    // 3. Fallback: Extracción Web Embed
+    const embedResult = await extractSpotifyViaEmbed(type, id);
+    if (embedResult && embedResult.tracks && embedResult.tracks.length >= 100) {
+      console.log(`[SPOTIFY EMBED] Se extrajeron 100 canciones. Para importar listas completas sin límite, vincula tu cuenta de Spotify en TokiTube.`);
     }
-
-    const playlistTitle = entity.name || entity.title || `Spotify ${type.toUpperCase()}`;
-    const rawList = Array.isArray(entity.trackList) ? entity.trackList : (entity.type === 'track' ? [entity] : []);
-
-    let defaultThumb = '';
-    if (Array.isArray(entity.visualIdentity?.image) && entity.visualIdentity.image.length > 0) {
-      defaultThumb = entity.visualIdentity.image[entity.visualIdentity.image.length - 1]?.url || '';
-    }
-
-    const tracks = rawList.map((t, idx) => {
-      const spId = (t.uri || t.id || '').replace(/^spotify:track:/, '') || `sp_${Date.now()}_${idx}`;
-      const title = t.title || t.name || 'Pista de Spotify';
-      const artist = t.subtitle || (Array.isArray(t.artists) ? t.artists.map(a => a.name).join(', ') : 'Artista Spotify');
-      const durSecs = Math.floor((t.duration || t.duration_ms || 0) / 1000);
-      const durationStr = formatSeconds(durSecs);
-      const trackHash = `trk_sp_${spId}`;
-      const cleanSearch = sanitizeSearchQuery(`${artist} ${title}`);
-
-      return {
-        trackHash,
-        title,
-        artist,
-        album: playlistTitle,
-        duration: durationStr !== '--:--' ? durationStr : '03:30',
-        format: 'M4A / SPOTIFY',
-        sourceType: 'web',
-        webUrl: `ytsearch1:${cleanSearch}`,
-        thumbnail: defaultThumb
-      };
-    });
-
-    return { playlistTitle, tracks };
+    return embedResult;
   } catch (err) {
     console.error('[SPOTIFY EXTRACT ERROR]', err);
     return { playlistTitle: '', tracks: [] };
@@ -390,7 +612,7 @@ export async function extractSpotifyFromUrl(spotifyUrl) {
 /**
  * Extrae todas las canciones de una URL de lista de reproducción de YouTube, Spotify o enlace web compatible
  */
-export async function extractPlaylistFromUrl(playlistUrl) {
+export async function extractPlaylistFromUrl(playlistUrl, username = null) {
   if (!playlistUrl || typeof playlistUrl !== 'string') {
     return { playlistTitle: '', tracks: [] };
   }
@@ -399,7 +621,7 @@ export async function extractPlaylistFromUrl(playlistUrl) {
 
   // Si es un enlace de Spotify (playlist, album o track)
   if (cleanUrl.includes('spotify.com')) {
-    return await extractSpotifyFromUrl(cleanUrl);
+    return await extractSpotifyFromUrl(cleanUrl, username);
   }
 
   // Si es YouTube u otra plataforma compatible con yt-dlp

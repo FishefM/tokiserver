@@ -78,6 +78,7 @@ import {
     clearQueue,
     shuffleQueue,
     deleteCurrentPlaylist,
+    syncCurrentPlaylistFromSource,
     openQueuePopover
 } from './playlists.js';
 
@@ -92,7 +93,8 @@ import {
     closeAddToPlaylistModal,
     openRelinkTrackModal,
     closeRelinkTrackModal,
-    getActiveEditTrack
+    getActiveEditTrack,
+    initSpotifyAuthModal
 } from './modals.js';
 
 import {
@@ -526,6 +528,7 @@ function setupEventListeners() {
     }
     if (dom.btnCancelNewPlaylist) dom.btnCancelNewPlaylist.addEventListener('click', closeNewPlaylistModal);
     if (dom.btnCloseModalNewPl) dom.btnCloseModalNewPl.addEventListener('click', closeNewPlaylistModal);
+    if (dom.btnSyncPlaylist) dom.btnSyncPlaylist.addEventListener('click', syncCurrentPlaylistFromSource);
     if (dom.btnDeletePlaylist) dom.btnDeletePlaylist.addEventListener('click', deleteCurrentPlaylist);
 
     // Modales de Edición y Agregar
@@ -867,7 +870,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // 4. Verificar si existe una Jam activa para restaurar la interfaz en modo Jam
+    // 4. Inicializar modal y eventos de autenticación de Spotify
+    initSpotifyAuthModal();
+
+    // 5. Verificar si existe una Jam activa para restaurar la interfaz en modo Jam
     checkAndRestoreActiveJam().catch(() => {});
 });
 

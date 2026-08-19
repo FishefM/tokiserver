@@ -121,6 +121,53 @@ export async function saveTrackToIDB(track) {
 }
 
 /**
+ * Guarda o actualiza un lote de canciones en IndexedDB en una sola transacción atómica de alto rendimiento.
+ */
+export async function saveTracksBatchToIDB(tracks) {
+    if (!Array.isArray(tracks) || tracks.length === 0) return;
+    try {
+        const db = await openDatabase();
+        return new Promise((resolve) => {
+            const tx = db.transaction(STORE_TRACKS, 'readwrite');
+            const store = tx.objectStore(STORE_TRACKS);
+            const currentUser = (getCurrentUser() || 'admin').toLowerCase();
+            const now = new Date().toISOString();
+
+            for (const track of tracks) {
+                if (!track || !track.trackHash) continue;
+                const fileBlob = (track.file && (track.file instanceof Blob || track.file.size > 0))
+                    ? track.file
+                    : null;
+
+                const record = {
+                    trackHash: track.trackHash,
+                    username: currentUser,
+                    title: track.title,
+                    artist: track.artist,
+                    album: track.album,
+                    duration: track.duration,
+                    format: track.format,
+                    rate: track.rate,
+                    sourceType: track.sourceType || (fileBlob && !track.webUrl ? 'local' : (track.webUrl ? 'drive' : 'local')),
+                    webUrl: track.webUrl || null,
+                    isFavorite: Boolean(track.isFavorite),
+                    file: fileBlob,
+                    thumbnail: track.thumbnail || null,
+                    updatedAt: now
+                };
+
+                store.put(record);
+            }
+
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => resolve();
+        });
+    } catch (err) {
+        console.warn('[IDB SAVE BATCH ERROR]', err);
+    }
+}
+
+/**
  * Elimina una canción específica de IndexedDB.
  */
 export async function deleteTrackFromIDB(trackHash) {

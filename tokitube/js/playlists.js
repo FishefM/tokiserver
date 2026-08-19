@@ -18,9 +18,9 @@ import {
     setUserPlaylists,
     appendLog
 } from './state.js';
-import { getTrackSourceState } from './utils.js';
+import { getTrackSourceState, showLoader, hideLoader } from './utils.js';
 import { apiFetch, downloadTrackFile } from './api.js';
-import { saveTrackToIDB, deleteTrackFromIDB, saveStateToIDB, saveQueueToIDB } from './storage.js';
+import { saveTrackToIDB, deleteTrackFromIDB, saveStateToIDB, saveQueueToIDB, saveTracksBatchToIDB } from './storage.js';
 import { loadTrack, playTrack, pauseTrack, nextTrack } from './audio.js';
 import { openEditTrackModal, openAddToPlaylistModal } from './modals.js';
 import { queueTrackToActiveJam, isInsideJam } from './jam.js';
@@ -146,17 +146,28 @@ export function updateDisplayedPlaylist() {
     if (activePlaylistId === 'all') {
         if (dom.playlistCurrentTitle) dom.playlistCurrentTitle.textContent = "BIBLIOTECA LOCAL";
         if (dom.btnDeletePlaylist) dom.btnDeletePlaylist.style.display = "none";
+        if (dom.btnSyncPlaylist) dom.btnSyncPlaylist.style.display = "none";
     } else if (activePlaylistId === 'drive') {
         if (dom.playlistCurrentTitle) dom.playlistCurrentTitle.textContent = "TOKIDRIVE MUSIC";
         if (dom.btnDeletePlaylist) dom.btnDeletePlaylist.style.display = "none";
+        if (dom.btnSyncPlaylist) dom.btnSyncPlaylist.style.display = "none";
     } else if (activePlaylistId === 'favorites') {
         if (dom.playlistCurrentTitle) dom.playlistCurrentTitle.textContent = "FAVORITAS";
         if (dom.btnDeletePlaylist) dom.btnDeletePlaylist.style.display = "none";
+        if (dom.btnSyncPlaylist) dom.btnSyncPlaylist.style.display = "none";
     } else {
         const pl = userPlaylists.find(p => p.id === activePlaylistId);
         if (pl) {
             if (dom.playlistCurrentTitle) dom.playlistCurrentTitle.textContent = `PLAYLIST: ${pl.name.toUpperCase()}`;
             if (dom.btnDeletePlaylist) dom.btnDeletePlaylist.style.display = "inline-flex";
+            if (dom.btnSyncPlaylist) {
+                if (pl.sourceUrl && pl.sourceUrl.trim()) {
+                    dom.btnSyncPlaylist.style.display = "inline-flex";
+                    dom.btnSyncPlaylist.title = `Sincronizar nuevas canciones desde la fuente: ${pl.sourceUrl}`;
+                } else {
+                    dom.btnSyncPlaylist.style.display = "none";
+                }
+            }
         } else {
             setActivePlaylistId('all');
             updateDisplayedPlaylist();
@@ -948,5 +959,70 @@ export async function deleteCurrentPlaylist() {
     } catch (err) {
         console.error('[DELETE PLAYLIST ERROR]', err);
         appendLog('ERROR al eliminar lista de reproducción.', true);
+    }
+}
+
+/**
+ * Sincroniza la playlist activa con su fuente (YouTube / Spotify), agregando solo las canciones nuevas.
+ */
+export async function syncCurrentPlaylistFromSource() {
+    if (activePlaylistId === 'all' || activePlaylistId === 'drive' || activePlaylistId === 'favorites') return;
+    const pl = userPlaylists.find(p => p.id === activePlaylistId);
+    if (!pl || !pl.sourceUrl) {
+        appendLog('ADVERTENCIA: Esta lista no tiene una URL fuente para sincronizar.', true);
+        return;
+    }
+
+    if (dom.btnSyncPlaylist) {
+        dom.btnSyncPlaylist.disabled = true;
+    }
+
+    showLoader(
+        `SINCRONIZANDO "${pl.name.toUpperCase()}"...`,
+        'Extrayendo canciones nuevas desde la fuente...'
+    );
+    appendLog(`[SINCRONIZACIÓN] Consultando nuevas canciones para "${pl.name}" desde ${pl.sourceUrl}...`);
+
+    try {
+        const data = await apiFetch(`/playlists/${pl.id}/sync-source`, {
+            method: 'POST'
+        });
+
+        hideLoader();
+        if (dom.btnSyncPlaylist) dom.btnSyncPlaylist.disabled = false;
+
+        if (data && data.success) {
+            if (data.addedCount === 0) {
+                appendLog(`[SINCRONIZACIÓN] La lista "${pl.name}" ya está al día. No se encontraron canciones nuevas.`);
+                alert(`La lista "${pl.name}" ya está al día. No hay canciones nuevas en la fuente.`);
+            } else {
+                // 1. Guardar metadatos de las pistas nuevas en memoria e IDB
+                if (Array.isArray(data.addedTracks)) {
+                    data.addedTracks.forEach(t => allTracksMap.set(t.trackHash, t));
+                    await saveTracksBatchToIDB(data.addedTracks);
+                }
+
+                // 2. Actualizar trackHashes en la playlist local
+                const newHashes = (data.addedTracks || []).map(t => t.trackHash);
+                const updatedTrackHashes = Array.from(new Set([...(pl.trackHashes || []), ...newHashes]));
+                pl.trackHashes = updatedTrackHashes;
+
+                appendLog(`[SINCRONIZACIÓN EXITOSA] Se agregaron ${data.addedCount} canciones nuevas a "${pl.name}". Las canciones existentes se mantuvieron intactas.`);
+                alert(`¡Sincronización exitosa!\n\nSe agregaron ${data.addedCount} canciones nuevas a la lista.\nLas canciones anteriores y tus modificaciones se mantuvieron intactas.`);
+
+                renderPlaylistSelectOptions();
+                updateDisplayedPlaylist();
+                renderQueue(dom.queueSearchInput ? dom.queueSearchInput.value : '');
+            }
+        } else {
+            const errMsg = data?.error || 'Error al sincronizar con la fuente.';
+            appendLog(`[ERROR SINCRONIZACIÓN] ${errMsg}`, true);
+            alert(`Error al sincronizar: ${errMsg}`);
+        }
+    } catch (err) {
+        hideLoader();
+        if (dom.btnSyncPlaylist) dom.btnSyncPlaylist.disabled = false;
+        appendLog(`[ERROR SINCRONIZACIÓN] ${err.message}`, true);
+        alert(`Error al sincronizar: ${err.message}`);
     }
 }

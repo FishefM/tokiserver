@@ -48,8 +48,8 @@ const queueListEl = document.getElementById('guest-queue-list');
 export function getBackendUrl() {
     const port = window.location.port;
     const hostname = window.location.hostname;
-    // Solo aplicar fallback a :3000 si se ejecuta en localhost con servidor de desarrollo (live-server en 8080 o 5500)
-    if ((hostname === 'localhost' || hostname === '127.0.0.1') && (port === '8080' || port === '5500')) {
+    // Redirigir al puerto 3000 de TokiServer cuando se accede desde un servidor estático (como live-server en 8080 o 5500)
+    if (port && port !== '3000' && port !== '80' && port !== '443') {
         return `${window.location.protocol}//${hostname}:3000`;
     }
     return '';

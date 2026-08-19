@@ -124,6 +124,7 @@ export const dom = {
     get filesInputHidden() { return document.getElementById('files-input-hidden'); },
     get btnClearLibrary() { return document.getElementById('btn-clear-playlist'); },
     get btnNewPlaylist() { return document.getElementById('btn-new-playlist'); },
+    get btnSyncPlaylist() { return document.getElementById('btn-sync-playlist'); },
     get btnDeletePlaylist() { return document.getElementById('btn-delete-playlist'); },
 
     // Pestañas, Cola y Búsqueda Web
@@ -148,8 +149,20 @@ export const dom = {
     get webSearchStatus() { return document.getElementById('web-search-status'); },
     get webSearchResults() { return document.getElementById('web-search-results'); },
 
+    get btnWinSpotify() { return document.getElementById('btn-win-spotify'); },
+
     // Modales
     get modalNewPlaylist() { return document.getElementById('modal-new-playlist'); },
+    get tabBtnPlUrl() { return document.getElementById('tab-btn-pl-url'); },
+    get tabBtnPlSpotify() { return document.getElementById('tab-btn-pl-spotify'); },
+    get panelNewPlUrl() { return document.getElementById('panel-new-pl-url'); },
+    get panelNewPlSpotify() { return document.getElementById('panel-new-pl-spotify'); },
+    get spotifyMyPlaylistsHeader() { return document.getElementById('spotify-my-playlists-header'); },
+    get spotifyMyPlaylistsUserBadge() { return document.getElementById('spotify-my-playlists-user-badge'); },
+    get btnRefreshSpotifyPl() { return document.getElementById('btn-refresh-spotify-pl'); },
+    get btnUnlinkSpotifyTab() { return document.getElementById('btn-unlink-spotify-tab'); },
+    get spotifyMyPlaylistsList() { return document.getElementById('spotify-my-playlists-list'); },
+    get btnCancelModalPlSpotify() { return document.getElementById('btn-cancel-modal-pl-spotify'); },
     get inputNewPlaylistName() { return document.getElementById('input-playlist-name'); },
     get inputPlaylistImportUrl() { return document.getElementById('input-playlist-import-url'); },
     get newPlImportStatus() { return document.getElementById('new-pl-import-status'); },
@@ -157,11 +170,20 @@ export const dom = {
     get btnCancelNewPlaylist() { return document.getElementById('btn-cancel-modal-pl'); },
     get btnCloseModalNewPl() { return document.getElementById('btn-close-modal-pl'); },
 
+    // Modal Spotify Account
+    get modalSpotifyAccount() { return document.getElementById('modal-spotify-account'); },
+    get btnCloseModalSpotify() { return document.getElementById('btn-close-modal-spotify'); },
+    get btnCancelModalSpotify() { return document.getElementById('btn-cancel-modal-spotify'); },
+    get btnActionSpotifyAuth() { return document.getElementById('btn-action-spotify-auth'); },
+    get spotifyAccountStatusText() { return document.getElementById('spotify-account-status-text'); },
+    get spotifyAccountDetails() { return document.getElementById('spotify-account-details'); },
+
     get modalEditTrack() { return document.getElementById('modal-edit-track'); },
     get editTrackHash() { return document.getElementById('edit-track-hash'); },
     get editTrackTitle() { return document.getElementById('edit-track-title'); },
     get editTrackArtist() { return document.getElementById('edit-track-artist'); },
     get editTrackAlbum() { return document.getElementById('edit-track-album'); },
+    get editTrackUrl() { return document.getElementById('edit-track-url'); },
     get btnConfirmEditTrack() { return document.getElementById('btn-confirm-modal-edit'); },
     get btnCancelEditTrack() { return document.getElementById('btn-cancel-modal-edit'); },
     get btnCloseModalEdit() { return document.getElementById('btn-close-modal-edit'); },

@@ -1,8 +1,16 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const htmlRoot = path.join(__dirname, '..');
+
+// Cargar .env ubicado en server/
+dotenv.config({ path: path.join(__dirname, '.env') });
+
 import { PORT } from './config/constants.js';
 import { getClientIp } from './middleware/authMiddleware.js';
 import { getDb } from './db.js';
@@ -13,10 +21,6 @@ import statusRoutes from './routes/statusRoutes.js';
 import driveRoutes from './routes/driveRoutes.js';
 import dorocoroRoutes from './routes/dorocoroRoutes.js';
 import { autoBanShield, exploitScannerShield, globalRateLimiter } from './middleware/securityMiddleware.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const htmlRoot = path.join(__dirname, '..');
 
 // Inicializar la base de datos SQLite cifrada al arrancar
 getDb();

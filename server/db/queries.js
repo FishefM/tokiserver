@@ -316,9 +316,9 @@ export function syncDorocoroTracks(username, tracks = []) {
 }
 
 /**
- * Actualiza el título, artista y álbum de una pista por su trackHash.
+ * Actualiza el título, artista, álbum, webUrl y sourceType de una pista por su trackHash.
  */
-export function updateDorocoroTrackMeta(username, trackHash, { title, artist, album }) {
+export function updateDorocoroTrackMeta(username, trackHash, { title, artist, album, webUrl, sourceType }) {
   return new Promise((resolve, reject) => {
     const db = getDbConnection();
     const now = new Date().toISOString();
@@ -328,9 +328,11 @@ export function updateDorocoroTrackMeta(username, trackHash, { title, artist, al
       SET title = coalesce(?, title),
           artist = coalesce(?, artist),
           album = coalesce(?, album),
+          webUrl = coalesce(?, webUrl),
+          sourceType = coalesce(?, sourceType),
           updatedAt = ?
       WHERE trackHash = ? AND username = ?
-    `, [title, artist, album, now, trackHash, username.toLowerCase()], function (err) {
+    `, [title, artist, album, webUrl, sourceType, now, trackHash, username.toLowerCase()], function (err) {
       if (err) return reject(err);
       resolve({ changes: this.changes });
     });
@@ -398,18 +400,53 @@ export function getDorocoroUserData(username) {
 /**
  * Crea una nueva lista de reproducción para el usuario.
  */
-export function createDorocoroPlaylist(username, id, name) {
+export function createDorocoroPlaylist(username, id, name, sourceUrl = null) {
   return new Promise((resolve, reject) => {
     const db = getDbConnection();
     const now = new Date().toISOString();
 
     db.run(`
-      INSERT INTO dorocoro_playlists (id, username, name, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?)
-    `, [id, username.toLowerCase(), name.trim(), now, now], function (err) {
+      INSERT INTO dorocoro_playlists (id, username, name, sourceUrl, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [id, username.toLowerCase(), name.trim(), sourceUrl ? sourceUrl.trim() : null, now, now], function (err) {
       if (err) return reject(err);
-      resolve({ id, name: name.trim() });
+      resolve({ id, name: name.trim(), sourceUrl: sourceUrl ? sourceUrl.trim() : null });
     });
+  });
+}
+
+/**
+ * Obtiene una lista de reproducción específica con sus pistas asociadas.
+ */
+export function getDorocoroPlaylistById(username, id) {
+  return new Promise((resolve, reject) => {
+    const db = getDbConnection();
+    const user = username.toLowerCase();
+
+    db.get(
+      `SELECT * FROM dorocoro_playlists WHERE id = ? AND (username = ? OR ? = 'admin')`,
+      [id, user, user],
+      (err, playlist) => {
+        if (err) return reject(err);
+        if (!playlist) return resolve(null);
+
+        db.all(
+          `SELECT pt.trackHash, pt.position, t.title, t.artist, t.webUrl, t.sourceType
+           FROM dorocoro_playlist_tracks pt
+           LEFT JOIN dorocoro_tracks t ON pt.trackHash = t.trackHash AND pt.username = t.username
+           WHERE pt.playlistId = ? AND (pt.username = ? OR ? = 'admin')
+           ORDER BY pt.position ASC`,
+          [id, user, user],
+          (err2, tracks) => {
+            if (err2) return reject(err2);
+            resolve({
+              ...playlist,
+              tracks: tracks || []
+            });
+          }
+        );
+      }
+    );
   });
 }
 
@@ -466,6 +503,53 @@ export function addTrackToDorocoroPlaylist(username, playlistId, trackHash) {
       if (err) return reject(err);
       resolve({ added: this.changes > 0 });
     });
+  });
+}
+
+/**
+ * Agrega un lote de canciones a una lista de reproducción de forma atómica.
+ */
+export function addTracksToDorocoroPlaylist(username, playlistId, trackHashes) {
+  return new Promise((resolve, reject) => {
+    if (!Array.isArray(trackHashes) || trackHashes.length === 0) {
+      return resolve({ count: 0 });
+    }
+    const db = getDbConnection();
+    const now = new Date().toISOString();
+    const user = username.toLowerCase();
+
+    db.get(
+      `SELECT COALESCE(MAX(position), 0) AS maxPos FROM dorocoro_playlist_tracks WHERE playlistId = ? AND username = ?`,
+      [playlistId, user],
+      (err, row) => {
+        if (err) return reject(err);
+        let currentPos = row ? (row.maxPos || 0) : 0;
+
+        db.serialize(() => {
+          db.run('BEGIN TRANSACTION');
+          const stmt = db.prepare(`
+            INSERT OR IGNORE INTO dorocoro_playlist_tracks (playlistId, username, trackHash, position, addedAt)
+            VALUES (?, ?, ?, ?, ?)
+          `);
+
+          for (const hash of trackHashes) {
+            currentPos++;
+            stmt.run([playlistId, user, hash, currentPos, now]);
+          }
+
+          stmt.finalize((finalizeErr) => {
+            if (finalizeErr) {
+              db.run('ROLLBACK');
+              return reject(finalizeErr);
+            }
+            db.run('COMMIT', (commitErr) => {
+              if (commitErr) return reject(commitErr);
+              resolve({ count: trackHashes.length });
+            });
+          });
+        });
+      }
+    );
   });
 }
 
@@ -580,6 +664,63 @@ export function clearAllDorocoroUserData(username) {
         if (err) return reject(err);
         resolve({ cleared: true, changes: this.changes });
       });
+    });
+  });
+}
+
+/**
+ * Guarda o actualiza los tokens OAuth2 y perfil de Spotify de un usuario.
+ */
+export function saveUserSpotifyAccount(username, { accessToken, refreshToken, expiresAt, spotifyUserId, spotifyDisplayName, spotifyAvatar }) {
+  return new Promise((resolve, reject) => {
+    const db = getDbConnection();
+    const user = (username || 'admin').toLowerCase();
+    const now = new Date().toISOString();
+
+    db.run(`
+      INSERT INTO dorocoro_spotify_accounts (username, accessToken, refreshToken, expiresAt, spotifyUserId, spotifyDisplayName, spotifyAvatar, linkedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(username) DO UPDATE SET
+        accessToken = excluded.accessToken,
+        refreshToken = coalesce(excluded.refreshToken, dorocoro_spotify_accounts.refreshToken),
+        expiresAt = excluded.expiresAt,
+        spotifyUserId = coalesce(excluded.spotifyUserId, dorocoro_spotify_accounts.spotifyUserId),
+        spotifyDisplayName = coalesce(excluded.spotifyDisplayName, dorocoro_spotify_accounts.spotifyDisplayName),
+        spotifyAvatar = coalesce(excluded.spotifyAvatar, dorocoro_spotify_accounts.spotifyAvatar),
+        linkedAt = excluded.linkedAt
+    `, [user, accessToken, refreshToken || '', expiresAt, spotifyUserId || null, spotifyDisplayName || null, spotifyAvatar || null, now], function (err) {
+      if (err) return reject(err);
+      resolve({ saved: true });
+    });
+  });
+}
+
+/**
+ * Obtiene la cuenta y tokens de Spotify vinculados a un usuario.
+ */
+export function getUserSpotifyAccount(username) {
+  return new Promise((resolve, reject) => {
+    const db = getDbConnection();
+    const user = (username || 'admin').toLowerCase();
+
+    db.get(`SELECT * FROM dorocoro_spotify_accounts WHERE username = ?`, [user], (err, row) => {
+      if (err) return reject(err);
+      resolve(row || null);
+    });
+  });
+}
+
+/**
+ * Elimina la vinculación de Spotify de un usuario.
+ */
+export function deleteUserSpotifyAccount(username) {
+  return new Promise((resolve, reject) => {
+    const db = getDbConnection();
+    const user = (username || 'admin').toLowerCase();
+
+    db.run(`DELETE FROM dorocoro_spotify_accounts WHERE username = ?`, [user], function (err) {
+      if (err) return reject(err);
+      resolve({ unlinked: this.changes > 0 });
     });
   });
 }
